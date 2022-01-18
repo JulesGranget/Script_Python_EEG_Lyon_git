@@ -197,7 +197,7 @@ def execute_function_in_slurm(name_script, name_function, params):
         os.fchmod(f.fileno(), mode = stat.S_IRWXU)
         f.close()
     
-    subprocess.Popen(['sbatch', f'{slurm_script_name}', f'-cpus-per-task={cpus_per_task}', f'-mem={mem}']) 
+    subprocess.Popen(['sbatch', f'{slurm_script_name}', f'-cpus-per-task={n_core_slurms}', f'-mem={mem_crnl_cluster}']) 
 
     # wait subprocess to lauch before removing
     time.sleep(3)
