@@ -81,7 +81,7 @@ def open_raw_data_session(sujet_i, session_i):
 
 
 ################################
-######## ECG DETECTION ########
+######## AUX PREPROC ########
 ################################
 
 def ecg_detection(raw_aux):
@@ -115,6 +115,54 @@ def ecg_detection(raw_aux):
     return raw_aux, ecg_events_time
 
 
+
+def respi_preproc(raw_aux):
+
+    raw_aux.info['ch_names']
+    srate = raw_aux.info['sfreq']
+    respi = raw_aux.get_data()[-1,:]
+
+    #### inspect Pxx
+    if debug:
+        srate = raw_aux.info['sfreq']
+        nwind = int(10*srate)
+        nfft = nwind
+        noverlap = np.round(nwind/2)
+        hannw = scipy.signal.windows.hann(nwind)
+        hzPxx, Pxx = scipy.signal.welch(respi,fs=srate,window=hannw,nperseg=nwind,noverlap=noverlap,nfft=nfft)
+        plt.plot(hzPxx, Pxx, label='respi')
+        plt.legend()
+        plt.xlim(0,10)
+        plt.show()
+
+    #### filter respi   
+    fcutoff = .7
+    transw  = .2
+    order   = np.round( 7*srate/fcutoff )
+    if order%2==0:
+        order += 1
+
+    shape   = [ 1,1,0,0 ]
+    frex    = [ 0, fcutoff, fcutoff+fcutoff*transw, srate/2 ]
+
+    filtkern = scipy.signal.firls(order,frex,shape,fs=srate)
+
+    respi_filt = scipy.signal.filtfilt(filtkern,1,respi)
+
+    if debug:
+        plt.plot(respi, label='respi')
+        plt.plot(respi_filt, label='respi_filtered')
+        plt.legend()
+        plt.show()
+
+    #### replace respi 
+    data = raw_aux.get_data()
+    data[-1,:] = respi_filt
+    raw_aux._data = data
+
+    #plt.plot(raw_aux.get_data()[-1,:]),plt.show()
+
+    return raw_aux
 
 
 
@@ -589,7 +637,7 @@ if __name__== '__main__':
     ########################
 
 
-    sujet_i, session_i = 'Pilote', 3
+    sujet_i, session_i = 'Pilote', 1
 
 
 
@@ -662,6 +710,8 @@ if __name__== '__main__':
     ################################
 
     raw_aux, ecg_events_time = ecg_detection(raw_aux)
+
+    raw_aux = respi_preproc(raw_aux)
 
     if debug == True:
         #### verif ECG
