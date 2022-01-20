@@ -1,6 +1,7 @@
 
 
 import os
+from unicodedata import name
 from matplotlib import lines
 import numpy as np
 import matplotlib.pyplot as plt
@@ -160,12 +161,12 @@ def surface_laplacian(raw, leg_order, m, smoothing):
 ################################
 
 
-#name_script, name_function, params = 'test', 'slurm_test',  ['pilote', 2]
+#name_script, name_function, params = 'test', 'slurm_test',  ['Pilote', 2]
 def execute_function_in_slurm(name_script, name_function, params):
 
     python = sys.executable
 
-    #### params to print
+    #### params to print in script
     params_str = ""
     for params_i in params:
         if isinstance(params_i, str):
@@ -177,6 +178,17 @@ def execute_function_in_slurm(name_script, name_function, params):
             params_str = params_str + str_i
         else:
             params_str = params_str + ' , ' + str_i
+
+    #### params to print in script name
+    params_str_name = ''
+    for params_i in params:
+
+        str_i = str(params_i)
+
+        if params_i == params[0] :
+            params_str_name = params_str_name + str_i
+        else:
+            params_str_name = params_str_name + '_' + str_i
     
     #### script text
     lines = [f'#! {python}']
@@ -190,21 +202,97 @@ def execute_function_in_slurm(name_script, name_function, params):
         
     #### write script and execute
     os.chdir(path_slurm)
-    slurm_script_name =  f"run_function_:_{name_function}_{str(params).replace(' ', '')}.py" #add params
+    slurm_script_name =  f"run_function_{name_function}_{params_str_name}.py" #add params
+        
+    with open(slurm_script_name, 'w') as f:
+        f.writelines('\n'.join(lines))
+        os.fchmod(f.fileno(), mode = stat.S_IRWXU)
+        f.close()
+        
+    subprocess.Popen(['sbatch', f'{slurm_script_name}', f'-cpus-per-task={n_core_slurms}', f'-mem={mem_crnl_cluster}']) 
+
+    # wait subprocess to lauch before removing
+    #time.sleep(3)
+    #os.remove(slurm_script_name)
+
+    print(f'#### slurm submission : from {name_script} execute {name_function}({params})')
+
+
+
+#name_script, name_function, params = 'n2_baseline_computation', 'compute_and_save_baseline',  ['Pilote', 2]
+def execute_function_in_slurm_bash(name_script, name_function, params):
+
+    python = sys.executable
+
+    #### params to print in script
+    params_str = ""
+    for params_i in params:
+        if isinstance(params_i, str):
+            str_i = f"'{params_i}'"
+        else:
+            str_i = str(params_i)
+
+        if params_i == params[0] :
+            params_str = params_str + str_i
+        else:
+            params_str = params_str + ' , ' + str_i
+
+    #### params to print in script name
+    params_str_name = ''
+    for params_i in params:
+
+        str_i = str(params_i)
+
+        if params_i == params[0] :
+            params_str_name = params_str_name + str_i
+        else:
+            params_str_name = params_str_name + '_' + str_i
+    
+    #### script text
+    lines = [f'#! {python}']
+    lines += ['import sys']
+    lines += [f"sys.path.append('{path_main_workdir}')"]
+    lines += [f'from {name_script} import {name_function}']
+    lines += [f'{name_function}({params_str})']
+
+    cpus_per_task = n_core_slurms
+    mem = mem_crnl_cluster
+        
+    #### write script and execute
+    os.chdir(path_slurm)
+    slurm_script_name =  f"run__{name_function}__{params_str_name}.py" #add params
         
     with open(slurm_script_name, 'w') as f:
         f.writelines('\n'.join(lines))
         os.fchmod(f.fileno(), mode = stat.S_IRWXU)
         f.close()
     
-    subprocess.Popen(['sbatch', f'{slurm_script_name}', f'-cpus-per-task={n_core_slurms}', f'-mem={mem_crnl_cluster}']) 
+    #### script text
+    lines = ['#!/bin/bash']
+    lines += [f'#SBATCH --job-name={name_function}']
+    lines += ['#SBATCH --output=%slurm_jules.log']
+    lines += ['#SBATCH --output=%slurm_jules.log']
+    lines += [f'#SBATCH --cpus-per-task={n_core_slurms}']
+    lines += [f'#SBATCH --mem={mem_crnl_cluster}']
+    lines += [f'srun {python} {os.path.join(path_slurm, slurm_script_name)}']
+        
+    #### write script and execute
+    slurm_bash_script_name =  f"bash__{name_function}__{params_str_name}.batch" #add params
+        
+    with open(slurm_bash_script_name, 'w') as f:
+        f.writelines('\n'.join(lines))
+        os.fchmod(f.fileno(), mode = stat.S_IRWXU)
+        f.close()
+
+    #### execute bash
+    subprocess.Popen(['sbatch', f'{slurm_bash_script_name}']) 
 
     # wait subprocess to lauch before removing
     time.sleep(3)
     os.remove(slurm_script_name)
+    os.remove(slurm_bash_script_name)
 
     print(f'#### slurm submission : from {name_script} execute {name_function}({params})')
-
 
 
 

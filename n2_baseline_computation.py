@@ -198,20 +198,14 @@ if __name__== '__main__':
 
     #### params
     sujet = 'Pilote'
+    session_i = 1
 
     #### compute
-    #compute_and_save_baseline(sujet_i, session_i)
-    import time
-
-    start = time.time()
-    compute_and_save_baseline(sujet, 3)
-    computation_time = (time.time()-start)/3600
-    print(f'computation time : {computation_time}h')
+    #compute_and_save_baseline(sujet, session_i)
     
-
     #### slurm execution
-    #for session_i in range(3): 
-    #    execute_function_in_slurm('n2_baseline_computation', 'compute_and_save_baseline', [sujet, session_i+1])
+    for session_i in range(3): 
+        execute_function_in_slurm_bash('n2_baseline_computation', 'compute_and_save_baseline', [sujet, session_i+1])
 
 
 

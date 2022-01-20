@@ -323,9 +323,9 @@ if __name__ == '__main__':
             cond_len[cond] = len(respi_allcond[cond])
         
         cond_len
-        cond = 'RD_CV' 
+        #cond = 'RD_CV' 
         #cond = 'RD_FV' 
-        #cond = 'RD_SV'
+        cond = 'RD_SV'
         #cond = 'FR_CV'
         
         session_i = 2

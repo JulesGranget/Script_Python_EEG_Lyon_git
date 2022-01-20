@@ -136,7 +136,7 @@ def respi_preproc(raw_aux):
         plt.show()
 
     #### filter respi   
-    fcutoff = .7
+    fcutoff = 1.5
     transw  = .2
     order   = np.round( 7*srate/fcutoff )
     if order%2==0:
