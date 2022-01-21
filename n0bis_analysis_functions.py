@@ -428,12 +428,12 @@ def extract_chanlist_srate_conditions(conditions_allsubjects):
                 break
 
     #### extract data
-    band_prep = band_prep_list[0]
+    band_prep = 'wb'
     cond = conditions[0]
 
     load_i = []
     for session_i, session_name in enumerate(os.listdir()):
-        if ( session_name.find(cond) != -1 ) & ( session_name.find(band_prep) != -1 ):
+        if (session_name.find(cond) != -1 ) & ( session_name.find(band_prep) != -1 ):
             load_i.append(session_i)
         else:
             continue
@@ -495,16 +495,16 @@ def extract_chanlist_srate_conditions_for_sujet(sujet_tmp, conditions_allsubject
 
 
 
-def load_data(band_prep, cond, session_i):
+def load_data(band_prep, session_eeg, cond, session_i):
 
     path_source = os.getcwd()
     
     os.chdir(os.path.join(path_prep, sujet, 'sections'))
 
     load_i = []
-    for i, session_name in enumerate(os.listdir()):
-        if ( session_name.find(cond) != -1 ) & ( session_name.find(band_prep) != -1 ):
-            load_i.append(i)
+    for session_name_i, session_name in enumerate(os.listdir()):
+        if np.sum([(session_name.find(cond) > 0), (session_name.find(f's{session_eeg+1}') > 0), (session_name.find(band_prep) > 0), (session_name.find('lf') != -1 or session_name.find('wb') != -1)]) == 4:                    
+            load_i.append(session_name_i)
         else:
             continue
 
@@ -592,22 +592,26 @@ def load_respfeatures(conditions):
     #### get respi features
     respfeatures_allcond = {}
 
-    for cond in conditions:
+    for session_eeg in range(3):
 
-        load_i = []
-        for session_i, session_name in enumerate(respfeatures_listdir_clean):
-            if session_name.find(cond) > 0:
-                load_i.append(session_i)
-            else:
-                continue
+        respfeatures_allcond[f's{session_eeg+1}'] = {}
 
-        load_list = [respfeatures_listdir_clean[i] for i in load_i]
+        for cond in conditions:
 
-        data = []
-        for load_name in load_list:
-            data.append(pd.read_excel(load_name))
+            load_i = []
+            for session_i, session_name in enumerate(respfeatures_listdir_clean):
+                if session_name.find(cond) > 0 and session_name.find(f's{session_eeg+1}') > 0:
+                    load_i.append(session_i)
+                else:
+                    continue
 
-        respfeatures_allcond[cond] = data
+            load_list = [respfeatures_listdir_clean[i] for i in load_i]
+
+            data = []
+            for load_name in load_list:
+                data.append(pd.read_excel(load_name))
+
+            respfeatures_allcond[f's{session_eeg+1}'][cond] = data
     
     #### go back to path source
     os.chdir(path_source)
