@@ -49,6 +49,9 @@ def precompute_surrogates_coh(band_prep, session_eeg, cond, session_i):
     
     print(cond)
 
+    conditions, chan_list, chan_list_ieeg, srate = extract_chanlist_srate_conditions(conditions_allsubjects)
+    nwind, nfft, noverlap, hannw = get_params_spectral_analysis(srate)
+
     data_tmp = load_data(band_prep, session_eeg, cond, session_i)
 
     if os.path.exists(sujet + f'_s{session_eeg+1}_' + cond + '_' + str(session_i+1) + '_Coh.npy'):
@@ -101,10 +104,12 @@ def precompute_surrogates_coh(band_prep, session_eeg, cond, session_i):
 
 
 
-#band_prep, session_eeg, cond, session_i, respfeatures_allcond = 'wb', 0, 'FR_CV', 0, respfeatures_allcond
-def precompute_surrogates_cyclefreq(band_prep, session_eeg, cond, session_i, respfeatures_allcond):
+#band_prep, session_eeg, cond, session_i = 'wb', 0, 'FR_CV', 0
+def precompute_surrogates_cyclefreq(band_prep, session_eeg, cond, session_i):
     
     print(cond)
+
+    respfeatures_allcond = load_respfeatures(conditions_allsubjects)
 
     os.chdir(os.path.join(path_precompute, sujet, 'PSD_Coh'))
 
@@ -162,10 +167,6 @@ def precompute_surrogates_cyclefreq(band_prep, session_eeg, cond, session_i, res
 
 
 
-if enable_big_execute:
-    __name__ = '__main__'
-
-
 if __name__ == '__main__':
 
 
@@ -175,11 +176,9 @@ if __name__ == '__main__':
     respfeatures_allcond = load_respfeatures(conditions_allsubjects)
 
     #### params surrogates
-
     nwind, nfft, noverlap, hannw = get_params_spectral_analysis(srate)
 
     #### compute and save
-
     print('######## COMPUTE SURROGATES ########')
 
     #session_eeg = 0
@@ -195,8 +194,8 @@ if __name__ == '__main__':
 
                 if len(respfeatures_allcond[f's{session_eeg+1}'][cond]) == 1:
 
-                    #precompute_surrogates_cyclefreq(band_prep, session_eeg, cond, 0, respfeatures_allcond)
-                    execute_function_in_slurm_bash('n5_precompute_surrogates', 'precompute_surrogates_cyclefreq', [band_prep, session_eeg, cond, 0, respfeatures_allcond])
+                    #precompute_surrogates_cyclefreq(band_prep, session_eeg, cond, 0)
+                    execute_function_in_slurm_bash('n5_precompute_surrogates', 'precompute_surrogates_cyclefreq', [band_prep, session_eeg, cond, 0])
 
                     if band_prep == 'wb':
                         #precompute_surrogates_coh(band_prep, session_eeg, cond, 0)
@@ -206,8 +205,8 @@ if __name__ == '__main__':
 
                     for session_i in range(len(respfeatures_allcond[f's{session_eeg+1}'][cond])):
 
-                        #precompute_surrogates_cyclefreq(band_prep, session_eeg, cond, session_i, respfeatures_allcond)
-                        execute_function_in_slurm_bash('n5_precompute_surrogates', 'precompute_surrogates_cyclefreq', [band_prep, session_eeg, cond, session_i, respfeatures_allcond])
+                        #precompute_surrogates_cyclefreq(band_prep, session_eeg, cond, session_i)
+                        execute_function_in_slurm_bash('n5_precompute_surrogates', 'precompute_surrogates_cyclefreq', [band_prep, session_eeg, cond, session_i])
 
                         if band_prep == 'wb':
                             #precompute_surrogates_coh(band_prep, session_eeg, cond, session_i)

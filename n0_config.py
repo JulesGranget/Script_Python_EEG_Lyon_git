@@ -18,7 +18,7 @@ import scipy.signal
 ######## GENERAL PARAMS ######## 
 ################################
 
-enable_big_execute = True
+enable_big_execute = False
 perso_repo_computation = False
 
 #### subjects
@@ -33,6 +33,8 @@ band_prep_list = ['wb']
 freq_band_list = [{'theta' : [2,10], 'alpha' : [8,14], 'beta' : [10,40], 'whole' : [2,50]}, {'l_gamma' : [50, 80], 'h_gamma' : [80, 120]}]
 
 session_protocol_EEG = ['2', '3', '4']
+
+srate = 1000
 
 
 ################################

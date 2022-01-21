@@ -219,7 +219,7 @@ def execute_function_in_slurm(name_script, name_function, params):
 
 
 
-#name_script, name_function, params = 'n2_baseline_computation', 'compute_and_save_baseline',  ['Pilote', 2]
+#name_script, name_function, params = 'n5_precompute_surrogates', 'precompute_surrogates_cyclefreq', [band_prep, session_eeg, cond, session_i, respfeatures_allcond]
 def execute_function_in_slurm_bash(name_script, name_function, params):
 
     python = sys.executable
@@ -270,8 +270,7 @@ def execute_function_in_slurm_bash(name_script, name_function, params):
     #### script text
     lines = ['#!/bin/bash']
     lines += [f'#SBATCH --job-name={name_function}']
-    lines += ['#SBATCH --output=%slurm_jules.log']
-    lines += ['#SBATCH --output=%slurm_jules.log']
+    lines += [f'#SBATCH --output=%slurm_{name_function}_{params_str_name}.log']
     lines += [f'#SBATCH --cpus-per-task={n_core_slurms}']
     lines += [f'#SBATCH --mem={mem_crnl_cluster}']
     lines += [f'srun {python} {os.path.join(path_slurm, slurm_script_name)}']
