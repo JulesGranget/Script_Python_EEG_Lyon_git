@@ -20,20 +20,24 @@ debug = False
 ######## COMPUTE BASELINE ######## 
 ########################################
 
-#sujet_i, session_i = 'Pilote', 1
+#sujet_i, session_i = 'Pilote', 2
 def compute_and_save_baseline(sujet_i, session_i):
 
     print('#### COMPUTE BASELINES ####')
 
+    #### reindex zero based indexing
+    session_i_eeg = session_i + 1
+    session_i_protocole = session_i + 2
+
     #### verify if already computed
-    if os.path.exists(os.path.join(path_prep, sujet, 'baseline', f'{sujet}_{session_i}_baselines.npy')):
+    if os.path.exists(os.path.join(path_prep, sujet, 'baseline', f'{sujet}_{session_i_eeg}_baselines.npy')):
         print(f'{sujet}_{session_i} : BASELINES ALREADY COMPUTED')
         return
 
     #### open raw
-    os.chdir(os.path.join(path_data, sujet_i, f'{sujet_i.lower()}_sub01', f'ses_0{str(session_i+1)}'))
+    os.chdir(os.path.join(path_data, sujet_i, f'{sujet_i.lower()}_sub01', f'ses_0{str(session_i_protocole)}'))
 
-    raw = mne.io.read_raw_brainvision(f'{sujet_i}01_session{session_i+1}.vhdr', preload=True)
+    raw = mne.io.read_raw_brainvision(f'{sujet_i}01_session{session_i_protocole}.vhdr', preload=True)
 
     #### Data vizualisation
     if debug == True :
@@ -153,7 +157,7 @@ def compute_and_save_baseline(sujet_i, session_i):
         n_fi2conv += wavelets_to_conv[band].shape[0]
 
     os.chdir(path_memmap)
-    baseline_allchan = np.memmap(f'{sujet}_{session_i}_baseline_convolutions.dat', dtype=np.float64, mode='w+', shape=(data.shape[0], n_fi2conv))
+    baseline_allchan = np.memmap(f'{sujet}_{session_i_eeg}_baseline_convolutions.dat', dtype=np.float64, mode='w+', shape=(data.shape[0], n_fi2conv))
 
         #### compute
     #n_chan = 0
@@ -178,12 +182,12 @@ def compute_and_save_baseline(sujet_i, session_i):
     joblib.Parallel(n_jobs = n_core, prefer = 'processes')(joblib.delayed(baseline_convolutions)(n_chan) for n_chan in range(np.size(data,0)))
 
     #### save baseline
-    os.chdir(os.path.join(path_prep, sujet, 'baseline'))
-    np.save(f'{sujet}_{session_i}_baselines.npy', baseline_allchan)
+    os.chdir(os.path.join(path_prep, sujet_i, 'baseline'))
+    np.save(f'{sujet_i}_{session_i_eeg}_baselines.npy', baseline_allchan)
 
     #### remove memmap
     os.chdir(path_memmap)
-    os.remove(f'{sujet}_{session_i}_baseline_convolutions.dat')
+    os.remove(f'{sujet_i}_{session_i_eeg}_baseline_convolutions.dat')
 
 
 
@@ -198,14 +202,14 @@ if __name__== '__main__':
 
     #### params
     sujet = 'Pilote'
-    session_i = 1
+    #session_i = 1
 
     #### compute
     #compute_and_save_baseline(sujet, session_i)
     
     #### slurm execution
     for session_i in range(3): 
-        execute_function_in_slurm_bash('n2_baseline_computation', 'compute_and_save_baseline', [sujet, session_i+1])
+        execute_function_in_slurm_bash('n2_baseline_computation', 'compute_and_save_baseline', [sujet, session_i])
 
 
 

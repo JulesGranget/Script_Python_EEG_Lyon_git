@@ -26,12 +26,24 @@ sujet = 'Pilote'
 
 #sujet = 'DEBUG'
 
-conditions_allsubjects = ['RD_CV', 'RD_FV', 'RD_SV', 'FR_CV']
+conditions_allsubjects = ['FR_CV', 'RD_CV', 'RD_FV', 'RD_SV']
+sujet_list = ['Pilote']
 
 band_prep_list = ['lf', 'hf']
 freq_band_list = [{'theta' : [2,10], 'alpha' : [8,14], 'beta' : [10,40], 'whole' : [2,50]}, {'l_gamma' : [50, 80], 'h_gamma' : [80, 120]}]
 
 session_protocol_EEG = ['2', '3', '4']
+
+
+################################
+######## ODOR ORDER ########
+################################
+
+odor_order = {
+
+'Pilote' : ['+', 'o', '-']
+
+}
 
 
 ########################################

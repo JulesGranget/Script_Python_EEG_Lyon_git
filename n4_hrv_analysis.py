@@ -35,40 +35,47 @@ for cond in conditions_allsubjects:
 
 conditions = cond_keep
 
-#### load ecg
-band_prep = 'lf'
 ecg_allcond = {}
 ecg_stim_allcond = {}
-for cond in conditions:
 
-    load_i = []
-    for session_i, session_name in enumerate(os.listdir()):
-        if ( session_name.find(cond) != -1 ) & ( session_name.find(band_prep) != -1 ):
-            load_i.append(session_i)
-        else:
-            continue
+for session_EEG in range(3):
 
-    load_list = [os.listdir()[i] for i in load_i]
+    ecg_allcond_session = {}
+    ecg_stim_allcond_session = {}
 
-    data_ecg = []
-    data_ecg_stim = []
-    for load_name in load_list:
-        raw = mne.io.read_raw_fif(load_name, preload=True)
-        srate = int(raw.info['sfreq'])
-        chan_list = raw.info['ch_names']
-        ecg_i = chan_list.index('ECG')
-        stim_i = chan_list.index('ECG_cR')
-        ecg = raw.get_data()[ecg_i,:]
-        ecg_stim = raw.get_data()[stim_i,:]
+    for cond in conditions:
 
-        if sujet_ecg_adjust.get(sujet) == 'inverse':
-            ecg = ecg*-1
-        
-        data_ecg.append(ecg)
-        data_ecg_stim.append(ecg_stim)
+        load_i = []
+        for session_i, session_name in enumerate(os.listdir()):
+            if np.sum([(session_name.find(cond) > 0), (session_name.find(f's{session_EEG+1}') > 0), (session_name.find('lf') != -1 or session_name.find('wb') != -1)]) == 3:                    
+                load_i.append(session_i)
+            else:
+                continue
 
-    ecg_allcond[cond] = data_ecg
-    ecg_stim_allcond[cond] = data_ecg_stim
+        load_list = [os.listdir()[i] for i in load_i]
+
+        data_ecg = []
+        data_ecg_stim = []
+        for load_name in load_list:
+            raw = mne.io.read_raw_fif(load_name, preload=True)
+            srate = int(raw.info['sfreq'])
+            chan_list = raw.info['ch_names']
+            ecg_i = chan_list.index('ECG')
+            stim_i = chan_list.index('ECG_cR')
+            ecg = raw.get_data()[ecg_i,:]
+            ecg_stim = raw.get_data()[stim_i,:]
+
+            if sujet_ecg_adjust.get(sujet) == 'inverse':
+                ecg = ecg*-1
+            
+            data_ecg.append(ecg)
+            data_ecg_stim.append(ecg_stim)
+
+        ecg_allcond_session[cond] = data_ecg
+        ecg_stim_allcond_session[cond] = data_ecg_stim
+
+    ecg_allcond[f's{session_EEG+1}'] = ecg_allcond_session
+    ecg_stim_allcond[f's{session_EEG+1}'] = ecg_stim_allcond_session
 
 
 
@@ -273,14 +280,14 @@ def get_dHR(RRI_resample, srate_resample, f_RRI, condition):
 
     return fig_verif, fig_dHR
 
-
-def ecg_analysis_homemade(cond, session_i):
+#session_eeg, session_i, cond, odor = 's1', 0, 'RD_CV', '+'
+def ecg_analysis_homemade(session_eeg, session_i, cond, odor):
 
     
     res_list = ['HRV_MeanNN', 'HRV_SDNN', 'HRV_RMSSD', 'HRV_pNN50', 'HRV_LF', 'HRV_HF', 'HRV_SD1', 'HRV_SD2']
 
     #### RRI
-    RRI, RRI_resample, IFR, fig_RRI = get_RRI_IFR(ecg_allcond[cond][session_i], ecg_stim_allcond[cond][session_i], cond, srate, srate_resample_hrv)
+    RRI, RRI_resample, IFR, fig_RRI = get_RRI_IFR(ecg_allcond[session_eeg][cond][session_i], ecg_stim_allcond[session_eeg][cond][session_i], cond, srate, srate_resample_hrv)
 
     HRV_MeanNN = np.mean(RRI)
     
@@ -310,6 +317,8 @@ def ecg_analysis_homemade(cond, session_i):
     hrv_metrics_homemade.insert(1,'Name',[sujet])
     hrv_metrics_homemade.insert(2,'RDorFR',[cond[:2]])
     hrv_metrics_homemade.insert(3,'Condition',[cond])
+    hrv_metrics_homemade.insert(4,'Odor',odor)
+
 
     return hrv_metrics_homemade, fig_list
 
@@ -321,18 +330,18 @@ def ecg_analysis_homemade(cond, session_i):
 ######## ECG ANALYSIS NK ########
 ########################################
 
-#cond, session_i = 'RD_CV', 0
-def ecg_analysis(cond, session_i):
+#session_eeg, session_i, cond, odor = 's1', 0, 'RD_CV', '+'
+def ecg_analysis(session_eeg, session_i, cond, odor):
 
     #### load cR
-    times = np.arange(len(ecg_allcond[cond][session_i]))
-    ecg_stim = ecg_stim_allcond[cond][session_i]
+    times = np.arange(len(ecg_allcond[session_eeg][cond][session_i]))
+    ecg_stim = ecg_stim_allcond[session_eeg][cond][session_i]
     ecg_stim = np.where(ecg_stim == 10, 1, ecg_stim) 
     peaks_dict = {'ECG_R_Peaks' : ecg_stim.astype(int)}
     ecg_peaks = pd.DataFrame(peaks_dict)
 
     #### verif cR
-    ecg = ecg_allcond[cond][session_i]
+    ecg = ecg_allcond[session_eeg][cond][session_i]
     ecg_cR = np.where(ecg_stim == 1)[0]
     fig_verif = plt.figure(figsize=(60,40))
     plt.plot(ecg)
@@ -352,11 +361,12 @@ def ecg_analysis(cond, session_i):
     hrv_metrics.insert(1,'Name',[sujet])
     hrv_metrics.insert(2,'RDorFR',[cond[:2]])
     hrv_metrics.insert(3,'Condition',[cond])
+    hrv_metrics.insert(4,'Odor',odor)
 
     col_to_drop = []
     col_hrv = list(hrv_metrics.columns.values) 
     for metric_name in col_hrv :
-        if metric_name == 'Subject' or metric_name == 'Name' or metric_name == 'RDorFR' or metric_name == 'Condition':
+        if metric_name == 'Subject' or metric_name == 'Name' or metric_name == 'RDorFR' or metric_name == 'Condition' or metric_name == 'Odor':
             continue
         elif (metric_name in hrv_metrics_short_name) == False :
             col_to_drop.append(metric_name)
@@ -375,37 +385,46 @@ if __name__ == '__main__':
     hrv_metrics_allcond_short = pd.DataFrame()
     fig_verif_list= []
     cond_name = []
-    for cond in conditions:
-        if len(ecg_allcond.get(cond)) == 1:
-            hrv_metrics, hrv_metrics_short, fig_verif = ecg_analysis(cond, 0)
-            hrv_metrics_allcond = pd.concat([hrv_metrics_allcond, hrv_metrics])
-            hrv_metrics_allcond_short = pd.concat([hrv_metrics_allcond_short, hrv_metrics_short])
-            fig_verif_list.append(fig_verif)
-            cond_name.append(cond + '_1')
+    for session_eeg in range(3):
 
-        else:
-            for session_i in range(len(ecg_allcond.get(cond))):
-                hrv_metrics, hrv_metrics_short, fig_verif = ecg_analysis(cond, session_i)
+        odor = odor_order[sujet][session_eeg]
+
+        for cond in conditions:
+
+            if len(ecg_allcond[f's{session_eeg+1}'][cond]) == 1:
+                hrv_metrics, hrv_metrics_short, fig_verif = ecg_analysis(f's{session_eeg+1}', 0, cond, odor)
                 hrv_metrics_allcond = pd.concat([hrv_metrics_allcond, hrv_metrics])
                 hrv_metrics_allcond_short = pd.concat([hrv_metrics_allcond_short, hrv_metrics_short])
                 fig_verif_list.append(fig_verif)
-                cond_name.append(cond + '_' + str(session_i+1))
+                cond_name.append(f's{session_eeg+1}_' + cond + '_1')
+
+            else:
+                for session_i in range(len(ecg_allcond[f's{session_eeg+1}'][cond])):
+                    hrv_metrics, hrv_metrics_short, fig_verif = ecg_analysis(f's{session_eeg+1}', session_i, cond, odor)
+                    hrv_metrics_allcond = pd.concat([hrv_metrics_allcond, hrv_metrics])
+                    hrv_metrics_allcond_short = pd.concat([hrv_metrics_allcond_short, hrv_metrics_short])
+                    fig_verif_list.append(fig_verif)
+                    cond_name.append(f's{session_eeg+1}_' + cond + '_' + str(session_i+1))
 
     #### compute hrv homemade
     hrv_metrics_allcond_homemade = pd.DataFrame()
     fig_allcond_list = []
 
-    for cond in conditions:
-        if len(ecg_allcond.get(cond)) == 1:
-            hrv_metrics_homemade, fig_list = ecg_analysis_homemade(cond, 0)
-            hrv_metrics_allcond_homemade = pd.concat([hrv_metrics_allcond_homemade, hrv_metrics_homemade])
-            fig_allcond_list.append(fig_list)
+    for session_eeg in range(3):
 
-        else:
-            for session_i in range(len(ecg_allcond.get(cond))):
-                hrv_metrics_homemade, fig_list = ecg_analysis_homemade(cond, session_i)
+        odor = odor_order[sujet][session_eeg]
+
+        for cond in conditions:
+            if len(ecg_allcond[f's{session_eeg+1}'][cond]) == 1:
+                hrv_metrics_homemade, fig_list = ecg_analysis_homemade(f's{session_eeg+1}', 0, cond, odor)
                 hrv_metrics_allcond_homemade = pd.concat([hrv_metrics_allcond_homemade, hrv_metrics_homemade])
                 fig_allcond_list.append(fig_list)
+
+            else:
+                for session_i in range(len(ecg_allcond[f's{session_eeg+1}'][cond])):
+                    hrv_metrics_homemade, fig_list = ecg_analysis_homemade(f's{session_eeg+1}', session_i, cond, odor)
+                    hrv_metrics_allcond_homemade = pd.concat([hrv_metrics_allcond_homemade, hrv_metrics_homemade])
+                    fig_allcond_list.append(fig_list)
 
 
 
@@ -416,20 +435,43 @@ if __name__ == '__main__':
 
 
     #### compute for mean cond
-    hrv_metrics_allcond_mean_cond = hrv_metrics_allcond.groupby(['RDorFR','Condition']).mean().reset_index()
-    hrv_metrics_allcond_mean_cond = hrv_metrics_allcond_mean_cond.drop(columns=['Subject'])
-    df_to_concat = hrv_metrics_allcond[['Subject', 'Name']].iloc[:hrv_metrics_allcond_mean_cond.index.stop,:].reset_index().drop(['index'], axis=1)
-    hrv_metrics_allcond_mean_cond = pd.concat([df_to_concat, hrv_metrics_allcond_mean_cond], axis=1)
+    hrv_metrics_allcond_mean_cond = pd.DataFrame()
+    hrv_metrics_allcond_short_mean_cond = pd.DataFrame()
+    hrv_metrics_allcond_homemade_mean_cond = pd.DataFrame()
 
-    hrv_metrics_allcond_short_mean_cond = hrv_metrics_allcond_short.groupby(['RDorFR','Condition']).mean().reset_index()
-    hrv_metrics_allcond_short_mean_cond = hrv_metrics_allcond_short_mean_cond.drop(columns=['Subject'])
-    df_to_concat = hrv_metrics_allcond[['Subject', 'Name']].iloc[:hrv_metrics_allcond_short_mean_cond.index.stop,:].reset_index().drop(['index'], axis=1)
-    hrv_metrics_allcond_short_mean_cond = pd.concat([df_to_concat, hrv_metrics_allcond_short_mean_cond], axis=1)
+    #odor = '-'
+    for odor in odor_order[sujet]:
+        
+        #### NK long
+        hrv_metrics_allcond_mean_cond_odor = hrv_metrics_allcond[hrv_metrics_allcond['Odor'] == odor].groupby('Condition').mean().reset_index()
+        hrv_metrics_allcond_mean_cond_odor = hrv_metrics_allcond_mean_cond_odor.drop(columns=['Subject'])
 
-    hrv_metrics_allcond_homemade_mean_cond = hrv_metrics_allcond_homemade.groupby(['RDorFR','Condition']).mean().reset_index()
-    hrv_metrics_allcond_homemade_mean_cond = hrv_metrics_allcond_homemade_mean_cond.drop(columns=['Subject'])
-    df_to_concat = hrv_metrics_allcond_homemade[['Subject', 'Name']].iloc[:hrv_metrics_allcond_homemade_mean_cond.index.stop,:].reset_index().drop(['index'], axis=1)
-    hrv_metrics_allcond_homemade_mean_cond = pd.concat([df_to_concat, hrv_metrics_allcond_homemade_mean_cond], axis=1)
+        df_to_concat = hrv_metrics_allcond[hrv_metrics_allcond['Odor'] == odor][['Subject', 'Name', 'Odor']].iloc[:len(hrv_metrics_allcond_mean_cond_odor)].reset_index().drop(['index'], axis=1)
+
+        hrv_metrics_allcond_mean_cond_odor = pd.concat([df_to_concat, hrv_metrics_allcond_mean_cond_odor], axis=1)
+        hrv_metrics_allcond_mean_cond = pd.concat([hrv_metrics_allcond_mean_cond, hrv_metrics_allcond_mean_cond_odor], axis=0)
+
+        #### NK short
+        hrv_metrics_allcond_short_mean_cond_odor = hrv_metrics_allcond_short[hrv_metrics_allcond_short['Odor'] == odor].groupby('Condition').mean().reset_index()
+        hrv_metrics_allcond_short_mean_cond_odor = hrv_metrics_allcond_short_mean_cond_odor.drop(columns=['Subject'])
+
+        df_to_concat = hrv_metrics_allcond[hrv_metrics_allcond['Odor'] == odor][['Subject', 'Name', 'Odor']].iloc[:len(hrv_metrics_allcond_short_mean_cond_odor)].reset_index().drop(['index'], axis=1)
+
+        hrv_metrics_allcond_short_mean_cond_odor = pd.concat([df_to_concat, hrv_metrics_allcond_short_mean_cond_odor], axis=1)
+        hrv_metrics_allcond_short_mean_cond = pd.concat([hrv_metrics_allcond_short_mean_cond, hrv_metrics_allcond_short_mean_cond_odor], axis=0)
+
+        #### Homemade short
+        hrv_metrics_allcond_homemade_mean_cond_odor = hrv_metrics_allcond_homemade[hrv_metrics_allcond_homemade['Odor'] == odor].groupby('Condition').mean().reset_index()
+        hrv_metrics_allcond_homemade_mean_cond_odor = hrv_metrics_allcond_homemade_mean_cond_odor.drop(columns=['Subject'])
+
+        df_to_concat = hrv_metrics_allcond[hrv_metrics_allcond['Odor'] == odor][['Subject', 'Name', 'Odor']].iloc[:len(hrv_metrics_allcond_homemade_mean_cond_odor)].reset_index().drop(['index'], axis=1)
+        
+        hrv_metrics_allcond_homemade_mean_cond_odor = pd.concat([df_to_concat, hrv_metrics_allcond_homemade_mean_cond_odor], axis=1)
+        hrv_metrics_allcond_homemade_mean_cond = pd.concat([hrv_metrics_allcond_homemade_mean_cond, hrv_metrics_allcond_homemade_mean_cond_odor], axis=0)
+
+    hrv_metrics_allcond_mean_cond.reset_index()
+    hrv_metrics_allcond_short_mean_cond.reset_index()
+    hrv_metrics_allcond_homemade_mean_cond.reset_index()
 
     #### save hrv metrics
     os.chdir(os.path.join(path_results, sujet, 'HRV'))

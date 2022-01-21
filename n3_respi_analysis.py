@@ -272,42 +272,56 @@ if __name__ == '__main__':
     #### load data
     raw_allcond = {}
 
-    for cond in conditions:
+    for session_EEG in range(3):
 
-        load_i = []
-        for session_i, session_name in enumerate(os.listdir()):
-            if session_name.find(cond) > 0 and (session_name.find('lf') != -1 or session_name.find('wb') != -1) :
-                load_i.append(session_i)
-            else:
-                continue
+        raw_allcond_session = {}
+        
+        for cond in conditions:
 
-        load_list = [os.listdir()[i] for i in load_i]
+            load_i = []
+            for session_i, session_name in enumerate(os.listdir()):
+                if np.sum([(session_name.find(cond) > 0), (session_name.find(f's{session_EEG+1}') > 0), (session_name.find('lf') != -1 or session_name.find('wb') != -1)]) == 3:                    
+                    load_i.append(session_i)
+                else:
+                    continue
 
-        data = []
-        for load_name in load_list:
-            data.append(mne.io.read_raw_fif(load_name, preload=True))
+            load_list = [os.listdir()[i] for i in load_i]
 
-        raw_allcond[cond] = data
+            data = []
+            for load_name in load_list:
+                data.append(mne.io.read_raw_fif(load_name, preload=True))
+
+            raw_allcond_session[cond] = data
+
+        raw_allcond[f's{session_EEG+1}'] = raw_allcond_session
 
 
-    srate = int(raw_allcond[os.listdir()[0][10:15]][0].info['sfreq'])
-    chan_list = raw_allcond[os.listdir()[0][10:15]][0].info['ch_names']
+    srate = int(raw_allcond['s1'][os.listdir()[0][10:15]][0].info['sfreq'])
+    chan_list = raw_allcond['s1'][os.listdir()[0][10:15]][0].info['ch_names']
 
 
     respi_allcond = {}
-    for cond in conditions:
+
+    for session_EEG in range(3):
+
+        respi_allcond_session = {}
+
+        for cond in conditions:
+            
+            data = []
+            for session_i in range(len(raw_allcond[f's{session_EEG+1}'][cond])):
+                if cond == 'FR_MV' :
+                    respi_i = chan_list.index('ventral')
+                else :
+                    respi_i = chan_list.index('Respi')
+
+                data.append(analyse_resp(raw_allcond[f's{session_EEG+1}'][cond][session_i].get_data()[respi_i, :], srate, 0, cond))
+
+            respi_allcond_session[cond] = data
+
+        respi_allcond[f's{session_EEG+1}'] = respi_allcond_session
+
         
-        data = []
-        for session_i in range(len(raw_allcond[cond])):
-            if cond == 'FR_MV' :
-                respi_i = chan_list.index('ventral')
-            else :
-                respi_i = chan_list.index('Respi')
-
-            data.append(analyse_resp(raw_allcond[cond][session_i].get_data()[respi_i, :], srate, 0, cond))
-
-        respi_allcond[cond] = data
-
     del raw_allcond
 
 
@@ -319,18 +333,20 @@ if __name__ == '__main__':
 
         # info to debug
         cond_len = {}
-        for cond in conditions:
-            cond_len[cond] = len(respi_allcond[cond])
+        for session_eeg in range(3):
+            cond_len[f's{session_eeg+1}'] = {}
+            for cond in conditions:
+                cond_len[f's{session_eeg+1}'][cond] = len(respi_allcond[f's{session_eeg+1}'][cond])
         
         cond_len
-        #cond = 'RD_CV' 
-        #cond = 'RD_FV' 
-        cond = 'RD_SV'
         #cond = 'FR_CV'
+        cond = 'RD_CV' 
+        #cond = 'RD_FV' 
+        #cond = 'RD_SV'
         
-        session_i = 2
+        session_eeg, session_i = 's1', 0
 
-        respi_allcond[cond][session_i][1].show(), respi_allcond[cond][session_i][2].show()
+        respi_allcond[session_eeg][cond][session_i][1].show(), respi_allcond[session_eeg][cond][session_i][2].show()
 
         #### recompute if necessary
         params = {
@@ -350,9 +366,12 @@ if __name__ == '__main__':
 
         }
 
+        resp_features, fig0, fig1 = analyse_resp_debug(raw_allcond[session_eeg][cond][session_i].get_data()[respi_i, :], srate, 0, cond, params)
+        fig0.show()
+        fig1.show()
 
         #### replace
-        respi_allcond[cond][session_i] = [resp_features, fig0, fig1]
+        respi_allcond[session_eeg][cond][session_i] = [resp_features, fig0, fig1]
 
 
 
@@ -364,11 +383,13 @@ if __name__ == '__main__':
     #### when everything ok
     os.chdir(os.path.join(path_results, sujet, 'RESPI'))
 
-    for cond_i in conditions:
+    for session_eeg in range(3):
 
-        for i in range(len(respi_allcond[cond_i])):
+        for cond_i in conditions:
 
-            respi_allcond[cond_i][i][0].to_excel(sujet + '_' + cond_i + '_' + str(i+1) + '_respfeatures.xlsx')
-            respi_allcond[cond_i][i][1].savefig(sujet + '_' + cond_i + '_' + str(i+1) + '_fig0.jpeg')
-            respi_allcond[cond_i][i][2].savefig(sujet + '_' + cond_i + '_' + str(i+1) + '_fig1.jpeg')
+            for i in range(len(respi_allcond[f's{session_eeg+1}'][cond_i])):
+
+                respi_allcond[f's{session_eeg+1}'][cond_i][i][0].to_excel(sujet + f'_s{session_eeg+1}' + '_' + cond_i + '_' + str(i+1) + '_respfeatures.xlsx')
+                respi_allcond[f's{session_eeg+1}'][cond_i][i][1].savefig(sujet + f'_s{session_eeg+1}' + '_' + cond_i + '_' + str(i+1) + '_fig0.jpeg')
+                respi_allcond[f's{session_eeg+1}'][cond_i][i][2].savefig(sujet + f'_s{session_eeg+1}' + '_' + cond_i + '_' + str(i+1) + '_fig1.jpeg')
 

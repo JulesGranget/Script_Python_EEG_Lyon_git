@@ -518,7 +518,7 @@ def preprocessing_ieeg(raw, prep_step):
 ######## CHOP & SAVE ########
 ################################
 
-#raw_eeg, raw_aux, conditions_trig, trig, ecg_event_time, band_preproc, export_info = raw_preproc_whole_band, raw_aux, conditions_trig, trig, ecg_events_time, 'whole_band', True
+#raw_eeg, raw_aux, conditions_trig, trig, ecg_events_time, band_preproc, session_i, export_info = raw_preproc_wb, raw_aux, conditions_trig, trig, ecg_events_time, 'wb', session_i, True
 def chop_save_trc(raw_eeg, raw_aux, conditions_trig, trig, ecg_events_time, band_preproc, session_i, export_info):
 
     print('#### SAVE ####')
@@ -531,6 +531,7 @@ def chop_save_trc(raw_eeg, raw_aux, conditions_trig, trig, ecg_events_time, band
     chan_list_all = chan_list_eeg + chan_list_aux + ['ECG_cR']
 
     ch_types = ['seeg'] * (len(chan_list_all)-4) + ['misc'] * 4
+    srate = raw_eeg.info['sfreq'] 
     info = mne.create_info(chan_list_all, srate, ch_types=ch_types)
     raw_all = mne.io.RawArray(data_all, info)
 
@@ -565,17 +566,33 @@ def chop_save_trc(raw_eeg, raw_aux, conditions_trig, trig, ecg_events_time, band
 
     os.chdir(os.path.join(path_prep, sujet, 'sections'))
 
-    # condition, trig_cond = list(conditions_trig.items())[0]
+    #condition, trig_cond = list(conditions_trig.items())[2]
     for condition, trig_cond in conditions_trig.items():
 
         cond_i = np.where(trig_df['name'].values == trig_cond[0])[0]
 
+        #i, trig_i = 0, cond_i[0]
         for i, trig_i in enumerate(cond_i):
 
             count_session[condition] = count_session[condition] + 1 
 
             raw_chunk = raw_all.copy()
             raw_chunk.crop( tmin = (trig_df.iloc[trig_i,:].time)/srate , tmax= (trig_df.iloc[trig_i+1,:].time/srate)-0.2 )
+
+            #### verif respi
+            if debug:
+                srate = raw_aux.info['sfreq']
+                nwind = int(10*srate)
+                nfft = nwind
+                noverlap = np.round(nwind/2)
+                hannw = scipy.signal.windows.hann(nwind)
+                hzPxx, Pxx = scipy.signal.welch(raw_chunk._data[-2,:],fs=srate,window=hannw,nperseg=nwind,noverlap=noverlap,nfft=nfft)
+                plt.plot(hzPxx, Pxx, label='respi')
+                plt.title(condition)
+                plt.legend()
+                plt.xlim(0,1)
+                plt.show()
+
             
             raw_chunk.save(sujet + '_' + f's{session_i}' + '_' + condition + '_' + str(i+1) + '_' + band_preproc + '.fif')
 
@@ -637,7 +654,7 @@ if __name__== '__main__':
     ########################
 
 
-    sujet_i, session_i = 'Pilote', 1
+    sujet_i, session_i = 'Pilote', 2
 
 
 
