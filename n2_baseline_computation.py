@@ -183,7 +183,7 @@ def compute_and_save_baseline(sujet_i, session_i):
 
     #### save baseline
     os.chdir(os.path.join(path_prep, sujet_i, 'baseline'))
-    np.save(f'{sujet_i}_{session_i_eeg}_baselines.npy', baseline_allchan)
+    np.save(f'{sujet_i}_s{session_i_eeg}_baselines.npy', baseline_allchan)
 
     #### remove memmap
     os.chdir(path_memmap)

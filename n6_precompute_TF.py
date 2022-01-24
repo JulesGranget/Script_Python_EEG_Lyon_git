@@ -22,7 +22,7 @@ debug = False
 
 
 #condition, resp_features, freq_band, stretch_point_TF = 'CV', list(resp_features_allcond.values())[0], freq_band, stretch_point_TF
-def compute_stretch_tf(tf, cond, session_i, respfeatures_allcond, stretch_point_TF):
+def compute_stretch_tf(tf, session_eeg, cond, session_i, respfeatures_allcond, stretch_point_TF):
 
     tf_mean_allchan = np.zeros((np.size(tf,0), np.size(tf,1), stretch_point_TF))
 
@@ -41,11 +41,11 @@ def compute_stretch_tf(tf, cond, session_i, respfeatures_allcond, stretch_point_
 
 #tf = tf_allchan
 #condition, resp_features, freq_band, stretch_point_TF = conditions[0], list(resp_features_allcond.values())[0], freq_band, stretch_point_TF
-def compute_stretch_tf_dB(tf, cond, session_i, respfeatures_allcond, stretch_point_TF, band, band_prep, nfrex):
+def compute_stretch_tf_dB(session_eeg, tf, cond, session_i, respfeatures_allcond, stretch_point_TF, band, band_prep, nfrex):
 
     #### load baseline
     os.chdir(os.path.join(path_prep, sujet, 'baseline'))
-    baselines = np.load(sujet + '_baselines.npy')
+    baselines = np.load(f'{sujet}_s{session_eeg+1}_baselines.npy')
 
     baselines_i = np.arange(nfrex)
     if band_prep == 'hf':
@@ -95,7 +95,7 @@ def compute_stretch_tf_dB(tf, cond, session_i, respfeatures_allcond, stretch_poi
 
 
 #condition, resp_features, freq_band, stretch_point_TF = conditions[0], list(resp_features_allcond.values())[0], freq_band, stretch_point_TF
-def compute_stretch_tf_itpc(tf, cond, session_i, respfeatures_allcond, stretch_point_TF):
+def compute_stretch_tf_itpc(tf, session_eeg, cond, session_i, respfeatures_allcond, stretch_point_TF):
     
     #### identify number stretch
     x = tf[0,:]
@@ -213,12 +213,12 @@ def precompute_tf(session_eeg, cond, session_i, srate_dw, freq_band_list, band_p
 
             #### stretch
             print('STRETCH')
-            tf_allband_stretched = compute_stretch_tf_dB(tf_allchan, cond, session_i, respfeatures_allcond, stretch_point_TF, band, band_prep, nfrex)
+            tf_allband_stretched = compute_stretch_tf_dB(session_eeg, tf_allchan, cond, session_i, respfeatures_allcond, stretch_point_TF, band, band_prep, nfrex)
             
             #### save
             print('SAVE')
             os.chdir(os.path.join(path_precompute, sujet, 'TF'))
-            np.save(sujet + '_tf_' + str(freq[0]) + '_' + str(freq[1]) + '_' + cond + '_' + str(session_i+1) + '.npy', tf_allband_stretched)
+            np.save(f'{sujet}_s{session_eeg+1}_tf_{str(freq[0])}_{str(freq[1])}_{cond}_{str(session_i+1)}.npy', tf_allband_stretched)
             
             os.chdir(path_memmap)
             os.remove(sujet + '_precompute_convolutions.dat')
@@ -312,7 +312,7 @@ def precompute_tf_itpc(session_eeg, cond, session_i, srate_dw, freq_band_list, b
                     tf[fi,:] = scipy.signal.fftconvolve(x, wavelets[fi,:], 'same')
 
                 #### stretch
-                tf_stretch = compute_stretch_tf_itpc(tf, cond, session_i, respfeatures_allcond, stretch_point_TF)
+                tf_stretch = compute_stretch_tf_itpc(tf, session_eeg, cond, session_i, respfeatures_allcond, stretch_point_TF)
 
                 #### ITPC
                 tf_angle = np.angle(tf_stretch)
@@ -338,7 +338,7 @@ def precompute_tf_itpc(session_eeg, cond, session_i, srate_dw, freq_band_list, b
             #### save
             print('SAVE')
             os.chdir(os.path.join(path_precompute, sujet, 'ITPC'))
-            np.save(sujet + '_itpc_' + str(freq[0]) + '_' + str(freq[1]) + '_' + cond + '_' + str(session_i+1) + '.npy', itpc_allchan)
+            np.save(f'{sujet}_s{session_eeg+1}_itpc_{str(freq[0])}_{str(freq[1])}_{cond}_{str(session_i+1)}.npy', itpc_allchan)
 
             del itpc_allchan
 
@@ -366,7 +366,7 @@ if __name__ == '__main__':
     #### compute and save tf
     #cond = 'FR_CV'
     #session_i = 0
-    #session_eeg = 0
+    #session_eeg = 1
 
     for session_eeg in range(3):
 

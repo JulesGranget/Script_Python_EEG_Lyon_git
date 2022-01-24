@@ -293,14 +293,13 @@ def execute_function_in_slurm_bash(name_script, name_function, params):
         f.close()
 
     #### execute bash
+    print(f'#### slurm submission : from {name_script} execute {name_function}({params})')
     subprocess.Popen(['sbatch', f'{slurm_bash_script_name}']) 
 
     # wait subprocess to lauch before removing
     time.sleep(3)
     os.remove(slurm_script_name)
     os.remove(slurm_bash_script_name)
-
-    print(f'#### slurm submission : from {name_script} execute {name_function}({params})')
 
     #### get back to original path
     os.chdir(scritp_path)
