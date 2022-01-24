@@ -189,7 +189,7 @@ if __name__ == '__main__':
 
             print('COMPUTE FOR ' + band_prep)
 
-            #cond = 'FR_CV'
+            #cond = 'RD_FV'
             for cond in conditions:
 
                 if len(respfeatures_allcond[f's{session_eeg+1}'][cond]) == 1:

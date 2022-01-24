@@ -117,7 +117,7 @@ else:
     path_main_workdir = '/crnldata/cmo/multisite/DATA_MANIP/EEG_Lyon_VJ/Script_Python_EEG_Lyon_git'
     path_general = '/crnldata/cmo/multisite/DATA_MANIP/EEG_Lyon_VJ'
     path_memmap = '/mnt/data/julesgranget'
-    n_core = 20
+    n_core = 10
     
 
 path_data = os.path.join(path_general, 'Data')
@@ -129,8 +129,8 @@ path_anatomy = os.path.join(path_general, 'Analyses', 'anatomy')
 path_slurm = os.path.join(path_general, 'Script_slurm')
 
 #### slurm params
-mem_crnl_cluster = '20G'
-n_core_slurms = 20
+mem_crnl_cluster = '10G'
+n_core_slurms = 10
 
 ################################################
 ######## ELECTRODES REMOVED BEFORE LOCA ######## 
@@ -288,6 +288,7 @@ ratio_stretch_TF = 0.45
 #### TF & ITPC
 nfrex_hf = 50
 nfrex_lf = 50
+nfrex_wb = 50
 ncycle_list_lf = [7, 15]
 ncycle_list_hf = [20, 30]
 srate_dw = 10

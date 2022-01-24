@@ -219,34 +219,43 @@ def execute_function_in_slurm(name_script, name_function, params):
 
 
 
-#name_script, name_function, params = 'n5_precompute_surrogates', 'precompute_surrogates_cyclefreq', [band_prep, session_eeg, cond, session_i, respfeatures_allcond]
+#name_script, name_function, params = 'n5_precompute_surrogates', 'precompute_surrogates_cyclefreq', [session_eeg, cond, session_i, srate_dw, freq_band_list, band_prep_list]
 def execute_function_in_slurm_bash(name_script, name_function, params):
 
+    scritp_path = os.getcwd()
+    
     python = sys.executable
 
     #### params to print in script
     params_str = ""
-    for params_i in params:
+    for i, params_i in enumerate(params):
         if isinstance(params_i, str):
             str_i = f"'{params_i}'"
         else:
             str_i = str(params_i)
 
-        if params_i == params[0] :
+        if i == 0 :
             params_str = params_str + str_i
         else:
             params_str = params_str + ' , ' + str_i
 
     #### params to print in script name
     params_str_name = ''
-    for params_i in params:
+    for i, params_i in enumerate(params):
 
         str_i = str(params_i)
 
-        if params_i == params[0] :
+        if i == 0 :
             params_str_name = params_str_name + str_i
         else:
             params_str_name = params_str_name + '_' + str_i
+
+    #### remove all txt that block name save
+    for txt_remove_i in ["'", "[", "]", "{", "}", ":", " ", ","]:
+        if txt_remove_i == " " or txt_remove_i == ",":
+            params_str_name = params_str_name.replace(txt_remove_i, '_')
+        else:
+            params_str_name = params_str_name.replace(txt_remove_i, '')
     
     #### script text
     lines = [f'#! {python}']
@@ -292,6 +301,10 @@ def execute_function_in_slurm_bash(name_script, name_function, params):
     os.remove(slurm_bash_script_name)
 
     print(f'#### slurm submission : from {name_script} execute {name_function}({params})')
+
+    #### get back to original path
+    os.chdir(scritp_path)
+
 
 
 

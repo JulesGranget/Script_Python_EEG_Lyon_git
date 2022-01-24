@@ -32,7 +32,7 @@ def compute_stretch_tf(tf, cond, session_i, respfeatures_allcond, stretch_point_
         for fi in range(np.size(tf,1)):
 
             x = tf[n_chan,fi,:]
-            x_stretch, ratio = stretch_data(respfeatures_allcond.get(cond)[session_i], stretch_point_TF, x, srate)
+            x_stretch, ratio = stretch_data(respfeatures_allcond[f's{session_eeg+1}'][cond][session_i], stretch_point_TF, x, srate)
             tf_mean[fi,:] = np.mean(x_stretch, axis=0)
 
         tf_mean_allchan[n_chan,:,:] = tf_mean
@@ -79,7 +79,7 @@ def compute_stretch_tf_dB(tf, cond, session_i, respfeatures_allcond, stretch_poi
         for fi in range(np.size(tf,1)):
 
             x = tf[n_chan,fi,:]
-            x_stretch, ratio = stretch_data(respfeatures_allcond.get(cond)[session_i], stretch_point_TF, x, srate)
+            x_stretch, ratio = stretch_data(respfeatures_allcond[f's{session_eeg+1}'][cond][session_i], stretch_point_TF, x, srate)
             tf_mean[fi,:] = np.mean(x_stretch, axis=0)
 
         return tf_mean
@@ -99,7 +99,7 @@ def compute_stretch_tf_itpc(tf, cond, session_i, respfeatures_allcond, stretch_p
     
     #### identify number stretch
     x = tf[0,:]
-    x_stretch, ratio = stretch_data(respfeatures_allcond.get(cond)[session_i], stretch_point_TF, x, srate)
+    x_stretch, ratio = stretch_data(respfeatures_allcond[f's{session_eeg+1}'][cond][session_i], stretch_point_TF, x, srate)
     nb_cycle = np.size(x_stretch, 0)
     
     #### compute tf
@@ -108,7 +108,7 @@ def compute_stretch_tf_itpc(tf, cond, session_i, respfeatures_allcond, stretch_p
     for fi in range(np.size(tf,0)):
 
         x = tf[fi,:]
-        x_stretch, ratio = stretch_data(respfeatures_allcond.get(cond)[session_i], stretch_point_TF, x, srate)
+        x_stretch, ratio = stretch_data(respfeatures_allcond[f's{session_eeg+1}'][cond][session_i], stretch_point_TF, x, srate)
         tf_stretch[:,fi,:] = x_stretch
 
     return tf_stretch
@@ -123,16 +123,19 @@ def compute_stretch_tf_itpc(tf, cond, session_i, respfeatures_allcond, stretch_p
 ################################
 
 
-def precompute_tf(cond, session_i, srate_dw, respfeatures_allcond, freq_band_list, band_prep_list):
+def precompute_tf(session_eeg, cond, session_i, srate_dw, freq_band_list, band_prep_list):
 
     print('TF PRECOMPUTE')
+
+    respfeatures_allcond = load_respfeatures(conditions_allsubjects)
+    conditions, chan_list, chan_list_ieeg, srate = extract_chanlist_srate_conditions(conditions_allsubjects)
 
     #### select prep to load
     #band_prep_i, band_prep = 1, 'hf'
     for band_prep_i, band_prep in enumerate(band_prep_list):
 
         #### select data without aux chan
-        data = load_data(band_prep, cond, session_i)[:len(chan_list_ieeg),:]
+        data = load_data(band_prep, session_eeg, cond, session_i)[:len(chan_list_ieeg),:]
 
         freq_band = freq_band_list[band_prep_i] 
 
@@ -154,10 +157,16 @@ def precompute_tf(cond, session_i, srate_dw, respfeatures_allcond, freq_band_lis
                 nfrex = nfrex_lf
                 ncycle_list = np.linspace(ncycle_list_lf[0], ncycle_list_lf[1], nfrex) 
 
-            if band_prep == 'hf':
+            elif band_prep == 'hf':
                 wavetime = np.arange(-.5,.5,1/srate)
                 nfrex = nfrex_hf
                 ncycle_list = np.linspace(ncycle_list_hf[0], ncycle_list_hf[1], nfrex)
+
+            elif band_prep == 'wb':
+                wavetime = np.arange(-.5,.5,1/srate)
+                nfrex = nfrex_wb
+                ncycle_list = np.linspace(ncycle_list_hf[0], ncycle_list_hf[1], nfrex)
+
 
             #### compute wavelets
             frex  = np.linspace(freq[0],freq[1],nfrex)
@@ -224,15 +233,18 @@ def precompute_tf(cond, session_i, srate_dw, respfeatures_allcond, freq_band_lis
 
 
 
-def precompute_tf_itpc(cond, session_i, srate_dw, respfeatures_allcond, freq_band_list, band_prep_list):
+def precompute_tf_itpc(session_eeg, cond, session_i, srate_dw, freq_band_list, band_prep_list):
 
     print('ITPC PRECOMPUTE')
+
+    respfeatures_allcond = load_respfeatures(conditions_allsubjects)
+    conditions, chan_list, chan_list_ieeg, srate = extract_chanlist_srate_conditions(conditions_allsubjects)
     
     #### select prep to load
     for band_prep_i, band_prep in enumerate(band_prep_list):
 
         #### select data without aux chan
-        data = load_data(band_prep, cond, session_i)[:len(chan_list_ieeg),:]
+        data = load_data(band_prep, session_eeg, cond, session_i)[:len(chan_list_ieeg),:]
 
         freq_band = freq_band_list[band_prep_i]
 
@@ -253,9 +265,14 @@ def precompute_tf_itpc(cond, session_i, srate_dw, respfeatures_allcond, freq_ban
                 nfrex = nfrex_lf
                 ncycle_list = np.linspace(ncycle_list_lf[0], ncycle_list_lf[1], nfrex) 
 
-            if band_prep == 'hf':
+            elif band_prep == 'hf':
                 wavetime = np.arange(-.5,.5,1/srate)
                 nfrex = nfrex_hf
+                ncycle_list = np.linspace(ncycle_list_hf[0], ncycle_list_hf[1], nfrex)
+
+            elif band_prep == 'wb':
+                wavetime = np.arange(-.5,.5,1/srate)
+                nfrex = nfrex_wb
                 ncycle_list = np.linspace(ncycle_list_hf[0], ncycle_list_hf[1], nfrex)
 
             #### compute wavelets
@@ -334,10 +351,6 @@ def precompute_tf_itpc(cond, session_i, srate_dw, respfeatures_allcond, freq_ban
 ########################################
 
 
-if enable_big_execute:
-    __name__ = '__main__'
-
-
 if __name__ == '__main__':
 
 
@@ -353,21 +366,29 @@ if __name__ == '__main__':
     #### compute and save tf
     #cond = 'FR_CV'
     #session_i = 0
-    for cond in conditions:
+    #session_eeg = 0
 
-        print(cond)
+    for session_eeg in range(3):
 
-        if len(respfeatures_allcond[cond]) == 1:
-    
-            precompute_tf(cond, 0, srate_dw, respfeatures_allcond, freq_band_list, band_prep_list)
-            precompute_tf_itpc(cond, 0, srate_dw, respfeatures_allcond, freq_band_list, band_prep_list)
+        for cond in conditions:
+
+            print(cond)
+
+            if len(respfeatures_allcond[f's{session_eeg+1}'][cond]) == 1:
         
-        elif len(respfeatures_allcond[cond]) > 1:
+                #precompute_tf(session_eeg, cond, 0, srate_dw, freq_band_list, band_prep_list)
+                execute_function_in_slurm_bash('n6_precompute_TF', 'precompute_tf', [session_eeg, cond, 0, srate_dw, freq_band_list, band_prep_list])
+                #precompute_tf_itpc(session_eeg, cond, 0, srate_dw, freq_band_list, band_prep_list)
+                execute_function_in_slurm_bash('n6_precompute_TF', 'precompute_tf_itpc', [session_eeg, cond, 0, srate_dw, freq_band_list, band_prep_list])
+            
+            elif len(respfeatures_allcond[f's{session_eeg+1}'][cond]) > 1:
 
-            for session_i in range(len(respfeatures_allcond[cond])):
+                for session_i in range(len(respfeatures_allcond[f's{session_eeg+1}'][cond])):
 
-                precompute_tf(cond, session_i, srate_dw, respfeatures_allcond, freq_band_list, band_prep_list)
-                precompute_tf_itpc(cond, session_i, srate_dw, respfeatures_allcond, freq_band_list, band_prep_list)
+                    #precompute_tf(session_eeg, cond, session_i, srate_dw, freq_band_list, band_prep_list)
+                    execute_function_in_slurm_bash('n6_precompute_TF', 'precompute_tf', [session_eeg, cond, session_i, srate_dw, freq_band_list, band_prep_list])
+                    #precompute_tf_itpc(session_eeg, cond, session_i, srate_dw, freq_band_list, band_prep_list)
+                    execute_function_in_slurm_bash('n6_precompute_TF', 'precompute_tf_itpc', [session_eeg, cond, session_i, srate_dw, freq_band_list, band_prep_list])
 
 
 
