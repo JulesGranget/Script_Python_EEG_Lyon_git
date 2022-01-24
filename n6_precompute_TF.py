@@ -144,7 +144,7 @@ def precompute_tf(session_eeg, cond, session_i, srate_dw, freq_band_list, band_p
 
             os.chdir(os.path.join(path_precompute, sujet, 'TF'))
 
-            if os.path.exists(sujet + '_tf_' + str(freq[0]) + '_' + str(freq[1]) + '_' + cond + '_' + str(session_i+1) + '.npy') == True :
+            if os.path.exists(f'{sujet}_s{session_eeg+1}_tf_{str(freq[0])}_{str(freq[1])}_{cond}_{str(session_i+1)}.npy') == True :
                 print('ALREADY COMPUTED')
                 continue
             
@@ -191,7 +191,7 @@ def precompute_tf(session_eeg, cond, session_i, srate_dw, freq_band_list, band_p
                 plt.show()
 
             os.chdir(path_memmap)
-            tf_allchan = np.memmap(sujet + '_precompute_convolutions.dat', dtype=np.float64, mode='w+', shape=(np.size(data,0), nfrex, np.size(data,1)))
+            tf_allchan = np.memmap(f'{sujet}_s{session_eeg+1}_tf_{str(freq[0])}_{str(freq[1])}_{cond}_{str(session_i+1)}_precompute_convolutions.dat', dtype=np.float64, mode='w+', shape=(np.size(data,0), nfrex, np.size(data,1)))
 
             def compute_tf_convolution_nchan(n_chan):
 
@@ -221,7 +221,7 @@ def precompute_tf(session_eeg, cond, session_i, srate_dw, freq_band_list, band_p
             np.save(f'{sujet}_s{session_eeg+1}_tf_{str(freq[0])}_{str(freq[1])}_{cond}_{str(session_i+1)}.npy', tf_allband_stretched)
             
             os.chdir(path_memmap)
-            os.remove(sujet + '_precompute_convolutions.dat')
+            os.remove(f'{sujet}_s{session_eeg+1}_tf_{str(freq[0])}_{str(freq[1])}_{cond}_{str(session_i+1)}_precompute_convolutions.dat')
 
 
 
@@ -253,7 +253,7 @@ def precompute_tf_itpc(session_eeg, cond, session_i, srate_dw, freq_band_list, b
 
             os.chdir(os.path.join(path_precompute, sujet, 'ITPC'))
 
-            if os.path.exists(sujet + '_itpc_' + str(freq[0]) + '_' + str(freq[1]) + '_' + cond + '_' + str(session_i+1) + '.npy') == True :
+            if os.path.exists(f'{sujet}_s{session_eeg+1}_itpc_{str(freq[0])}_{str(freq[1])}_{cond}_{str(session_i+1)}.npy') == True :
                 print('ALREADY COMPUTED')
                 continue
             
@@ -346,21 +346,19 @@ def precompute_tf_itpc(session_eeg, cond, session_i, srate_dw, freq_band_list, b
 
 
 
-########################################
-######## EXECUTE AND SAVE ########
-########################################
+################################
+######## EXECUTE ########
+################################
 
 
 if __name__ == '__main__':
 
 
     #### load data
-
     conditions, chan_list, chan_list_ieeg, srate = extract_chanlist_srate_conditions(conditions_allsubjects)
     respfeatures_allcond = load_respfeatures(conditions)
 
     #### compute all
-
     print('######## PRECOMPUTE TF & ITPC ########')
 
     #### compute and save tf

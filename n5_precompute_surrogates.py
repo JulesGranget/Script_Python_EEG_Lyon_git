@@ -167,11 +167,17 @@ def precompute_surrogates_cyclefreq(band_prep, session_eeg, cond, session_i):
 
 
 
+
+
+
+################################
+######## EXECUTE ########
+################################
+
 if __name__ == '__main__':
 
 
     #### load data
-
     conditions, chan_list, chan_list_ieeg, srate = extract_chanlist_srate_conditions(conditions_allsubjects)
     respfeatures_allcond = load_respfeatures(conditions_allsubjects)
 
@@ -181,7 +187,7 @@ if __name__ == '__main__':
     #### compute and save
     print('######## COMPUTE SURROGATES ########')
 
-    #session_eeg = 0
+    #session_eeg = 1
     for session_eeg in range(3):
 
         #band_prep = band_prep_list[0]
