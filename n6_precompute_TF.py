@@ -21,7 +21,6 @@ debug = False
 
 
 
-#condition, resp_features, freq_band, stretch_point_TF = 'CV', list(resp_features_allcond.values())[0], freq_band, stretch_point_TF
 def compute_stretch_tf(tf, session_eeg, cond, session_i, respfeatures_allcond, stretch_point_TF):
 
     tf_mean_allchan = np.zeros((np.size(tf,0), np.size(tf,1), stretch_point_TF))
@@ -39,29 +38,21 @@ def compute_stretch_tf(tf, session_eeg, cond, session_i, respfeatures_allcond, s
 
     return tf_mean_allchan
 
-#tf = tf_allchan
 #condition, resp_features, freq_band, stretch_point_TF = conditions[0], list(resp_features_allcond.values())[0], freq_band, stretch_point_TF
 def compute_stretch_tf_dB(session_eeg, tf, cond, session_i, respfeatures_allcond, stretch_point_TF, band, band_prep, nfrex):
 
     #### load baseline
     os.chdir(os.path.join(path_prep, sujet, 'baseline'))
-    baselines = np.load(f'{sujet}_s{session_eeg+1}_baselines.npy')
-
-    baselines_i = np.arange(nfrex)
-    if band_prep == 'hf':
-        baselines_i += nfrex * len(freq_band_list[0])
-
-    baselines_i += nfrex *list(freq_band_list[band_prep_list.index(band_prep)].keys()).index(band)
+    
+    baselines = np.load(f'{sujet}_s{session_eeg+1}_{band}_baselines.npy')
 
     #### apply baseline
     for n_chan in range(np.size(tf,0)):
-
-        baselines_band = baselines[n_chan,baselines_i]
         
         for fi in range(np.size(tf,1)):
 
             activity = tf[n_chan,fi,:]
-            baseline_fi = baselines_band[fi]
+            baseline_fi = baselines[n_chan, fi]
 
             #### verify baseline
             #plt.plot(activity)
@@ -94,7 +85,6 @@ def compute_stretch_tf_dB(session_eeg, tf, cond, session_i, respfeatures_allcond
     return tf_mean_allchan
 
 
-#condition, resp_features, freq_band, stretch_point_TF = conditions[0], list(resp_features_allcond.values())[0], freq_band, stretch_point_TF
 def compute_stretch_tf_itpc(tf, session_eeg, cond, session_i, respfeatures_allcond, stretch_point_TF):
     
     #### identify number stretch
@@ -123,7 +113,7 @@ def compute_stretch_tf_itpc(tf, session_eeg, cond, session_i, respfeatures_allco
 ################################
 
 
-def precompute_tf(session_eeg, cond, session_i, srate_dw, freq_band_list, band_prep_list):
+def precompute_tf(session_eeg, cond, session_i, band_prep_list):
 
     print('TF PRECOMPUTE')
 
@@ -132,12 +122,12 @@ def precompute_tf(session_eeg, cond, session_i, srate_dw, freq_band_list, band_p
 
     #### select prep to load
     #band_prep_i, band_prep = 1, 'hf'
-    for band_prep_i, band_prep in enumerate(band_prep_list):
+    for band_prep in band_prep_list:
 
         #### select data without aux chan
         data = load_data(band_prep, session_eeg, cond, session_i)[:len(chan_list_ieeg),:]
 
-        freq_band = freq_band_list[band_prep_i] 
+        freq_band = freq_band_dict[band_prep] 
 
         #band, freq = list(freq_band.items())[0]
         for band, freq in freq_band.items():
@@ -163,7 +153,7 @@ def precompute_tf(session_eeg, cond, session_i, srate_dw, freq_band_list, band_p
                 ncycle_list = np.linspace(ncycle_list_hf[0], ncycle_list_hf[1], nfrex)
 
             elif band_prep == 'wb':
-                wavetime = np.arange(-.5,.5,1/srate)
+                wavetime = np.arange(-2,2,1/srate)
                 nfrex = nfrex_wb
                 ncycle_list = np.linspace(ncycle_list_hf[0], ncycle_list_hf[1], nfrex)
 
@@ -233,7 +223,7 @@ def precompute_tf(session_eeg, cond, session_i, srate_dw, freq_band_list, band_p
 
 
 
-def precompute_tf_itpc(session_eeg, cond, session_i, srate_dw, freq_band_list, band_prep_list):
+def precompute_tf_itpc(session_eeg, cond, session_i, band_prep_list):
 
     print('ITPC PRECOMPUTE')
 
@@ -241,12 +231,12 @@ def precompute_tf_itpc(session_eeg, cond, session_i, srate_dw, freq_band_list, b
     conditions, chan_list, chan_list_ieeg, srate = extract_chanlist_srate_conditions(conditions_allsubjects)
     
     #### select prep to load
-    for band_prep_i, band_prep in enumerate(band_prep_list):
+    for band_prep in band_prep_list:
 
         #### select data without aux chan
         data = load_data(band_prep, session_eeg, cond, session_i)[:len(chan_list_ieeg),:]
 
-        freq_band = freq_band_list[band_prep_i]
+        freq_band = freq_band_dict[band_prep]
 
         #band, freq = list(freq_band.items())[0]
         for band, freq in freq_band.items():
@@ -346,6 +336,48 @@ def precompute_tf_itpc(session_eeg, cond, session_i, srate_dw, freq_band_list, b
 
 
 
+
+################################
+######## CHECK STATUS ########
+################################
+
+def check_precompute_status():
+
+    print('#### For TF to compute : ####')
+
+    os.chdir(os.path.join(path_precompute, sujet, 'TF'))
+
+    to_compute = []
+    #session_eeg, band_prep, cond, session_i = 0, band_prep_list[0], 'RD_FV', 0
+    for band_prep in band_prep_list:
+        for session_eeg in range(3):
+            for band, freq in freq_band_dict[band_prep].items():
+                for cond in conditions:
+                    for session_i in range(len(respfeatures_allcond[f's{session_eeg+1}'][cond])):
+                        to_compute.append(f'{sujet}_s{session_eeg+1}_tf_{str(freq[0])}_{str(freq[1])}_{cond}_{str(session_i+1)}.npy')
+    
+    print([file_i for file_i in to_compute if file_i not in os.listdir()])
+
+    print('#### For ITPC to compute : ####')
+
+    os.chdir(os.path.join(path_precompute, sujet, 'ITPC'))
+
+    to_compute = []
+    #session_eeg, band_prep, cond, session_i = 0, band_prep_list[0], 'RD_FV', 0
+    for band_prep in band_prep_list:
+        for session_eeg in range(3):
+            for band, freq in freq_band_dict[band_prep].items():
+                for cond in conditions:
+                    for session_i in range(len(respfeatures_allcond[f's{session_eeg+1}'][cond])):
+                        to_compute.append(f'{sujet}_s{session_eeg+1}_itpc_{str(freq[0])}_{str(freq[1])}_{cond}_{str(session_i+1)}.npy')
+        
+    print([file_i for file_i in to_compute if file_i not in os.listdir()])
+
+
+
+
+
+
 ################################
 ######## EXECUTE ########
 ################################
@@ -358,11 +390,14 @@ if __name__ == '__main__':
     conditions, chan_list, chan_list_ieeg, srate = extract_chanlist_srate_conditions(conditions_allsubjects)
     respfeatures_allcond = load_respfeatures(conditions)
 
+    #### check status
+    check_precompute_status()
+
     #### compute all
     print('######## PRECOMPUTE TF & ITPC ########')
 
     #### compute and save tf
-    #cond = 'FR_CV'
+    #cond = 'RD_SV'
     #session_i = 0
     #session_eeg = 1
 
@@ -374,19 +409,19 @@ if __name__ == '__main__':
 
             if len(respfeatures_allcond[f's{session_eeg+1}'][cond]) == 1:
         
-                #precompute_tf(session_eeg, cond, 0, srate_dw, freq_band_list, band_prep_list)
-                execute_function_in_slurm_bash('n6_precompute_TF', 'precompute_tf', [session_eeg, cond, 0, srate_dw, freq_band_list, band_prep_list])
-                #precompute_tf_itpc(session_eeg, cond, 0, srate_dw, freq_band_list, band_prep_list)
-                execute_function_in_slurm_bash('n6_precompute_TF', 'precompute_tf_itpc', [session_eeg, cond, 0, srate_dw, freq_band_list, band_prep_list])
+                #precompute_tf(session_eeg, cond, 0, band_prep_list)
+                execute_function_in_slurm_bash('n6_precompute_TF', 'precompute_tf', [session_eeg, cond, 0, band_prep_list])
+                #precompute_tf_itpc(session_eeg, cond, 0, band_prep_list)
+                execute_function_in_slurm_bash('n6_precompute_TF', 'precompute_tf_itpc', [session_eeg, cond, 0, band_prep_list])
             
             elif len(respfeatures_allcond[f's{session_eeg+1}'][cond]) > 1:
 
                 for session_i in range(len(respfeatures_allcond[f's{session_eeg+1}'][cond])):
 
-                    #precompute_tf(session_eeg, cond, session_i, srate_dw, freq_band_list, band_prep_list)
-                    execute_function_in_slurm_bash('n6_precompute_TF', 'precompute_tf', [session_eeg, cond, session_i, srate_dw, freq_band_list, band_prep_list])
-                    #precompute_tf_itpc(session_eeg, cond, session_i, srate_dw, freq_band_list, band_prep_list)
-                    execute_function_in_slurm_bash('n6_precompute_TF', 'precompute_tf_itpc', [session_eeg, cond, session_i, srate_dw, freq_band_list, band_prep_list])
+                    #precompute_tf(session_eeg, cond, session_i, band_prep_list)
+                    execute_function_in_slurm_bash('n6_precompute_TF', 'precompute_tf', [session_eeg, cond, session_i, band_prep_list])
+                    #precompute_tf_itpc(session_eeg, cond, session_i, band_prep_list)
+                    execute_function_in_slurm_bash('n6_precompute_TF', 'precompute_tf_itpc', [session_eeg, cond, session_i, band_prep_list])
 
 
 

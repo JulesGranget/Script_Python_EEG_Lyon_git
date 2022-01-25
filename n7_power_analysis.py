@@ -22,17 +22,15 @@ debug = False
 ######## LOAD DATA ########
 ################################
 
-def get_all_info():
+#session_eeg = 0
+def get_all_info(session_eeg):
 
     conditions, chan_list, chan_list_ieeg, srate = extract_chanlist_srate_conditions(conditions_allsubjects)
     respfeatures_allcond = load_respfeatures(conditions)
-    respi_ratio_allcond = get_all_respi_ratio(conditions, respfeatures_allcond)
-
-    dict_loca = get_electrode_loca()
-
+    respi_ratio_allcond = get_all_respi_ratio(session_eeg, conditions, respfeatures_allcond)
     nwind, nfft, noverlap, hannw = get_params_spectral_analysis(srate)
 
-    return conditions, chan_list, chan_list_ieeg, srate, respfeatures_allcond, dict_loca, nwind, nfft, noverlap, hannw
+    return conditions, chan_list, chan_list_ieeg, srate, respfeatures_allcond, nwind, nfft, noverlap, hannw
 
 
 
@@ -49,31 +47,34 @@ def load_surrogates_session(session_eeg):
 
     surrogates_allcond = {'Cxy' : {}}
 
+    for band_prep in band_prep_list:
+        surrogates_allcond[f'cyclefreq_{band_prep}'] = {}
+
     for cond in conditions:
 
         if len(respfeatures_allcond[f's{session_eeg+1}'][cond]) == 1:
 
             surrogates_allcond['Cxy'][cond] = [np.load(f'{sujet}_s{session_eeg+1}_{cond}_1_Coh.npy')]
+            surrogates_allcond[f'cyclefreq_{band_prep}'][cond] = [np.load(f'{sujet}_s{session_eeg+1}_{cond}_1_cyclefreq_{band_prep}.npy')]
 
-            for band_prep in band_prep_list:
-                
-                surrogates_allcond[f'cyclefreq_{band_prep}'] = {}
-                surrogates_allcond[f'cyclefreq_{band_prep}'][cond] = [np.load(f'{sujet}_s{session_eeg+1}_{cond}_1_cyclefreq_{band_prep}.npy')]
-
-            
         elif len(respfeatures_allcond[f's{session_eeg+1}'][cond]) > 1:
 
-            data_load = {'Cxy' : []}
+            data_load = []
 
             for session_i in range(len(respfeatures_allcond[f's{session_eeg+1}'][cond])):
 
-                data_load['Cxy'].append(np.load(f'{sujet}_s{session_eeg+1}_{cond}_{str(session_i+1)}_Coh.npy'))
+                data_load.append(np.load(f'{sujet}_s{session_eeg+1}_{cond}_{str(session_i+1)}_Coh.npy'))
+                surrogates_allcond[f'cyclefreq_{band_prep}'][cond] = [np.load(f'{sujet}_s{session_eeg+1}_{cond}_{str(session_i+1)}_cyclefreq_{band_prep}.npy')]                 
 
-                for band_prep in band_prep_list:
-                    
-                    surrogates_allcond[f'cyclefreq_{band_prep}'] = {}
-                    surrogates_allcond[f'cyclefreq_{band_prep}'][cond] = [np.load(f'{sujet}_s{session_eeg+1}_{cond}_{str(session_i+1)}_cyclefreq_{band_prep}.npy')]                 
+            surrogates_allcond['Cxy'][cond] = data_load
 
+    #### verif 
+    if debug:
+        for cond in list(surrogates_allcond['Cxy'].keys()):
+            for session_i in range(len(respfeatures_allcond[f's{session_eeg+1}'][cond])):
+                print(f'for {cond}, session {session_i+1} :')
+                print('Cxy : ', surrogates_allcond['Cxy']['FR_CV'][0].shape)
+                print('cyclefreq : ', surrogates_allcond['cyclefreq_wb']['FR_CV'][0].shape)
 
     return surrogates_allcond
 
@@ -85,9 +86,13 @@ def compute_PxxCxyCyclefreq_for_cond(band_prep, session_eeg, cond, session_i, nb
     print(cond)
 
     #### extract data
-    chan_i = chan_list.index('nasal')
+    chan_i = chan_list.index('Respi')
     respi = load_data(band_prep, session_eeg, cond, session_i)[chan_i,:]
     data_tmp = load_data(band_prep, session_eeg, cond, session_i)
+    if stretch_point_surrogates == stretch_point_TF:
+        nb_point_by_cycle = stretch_point_surrogates
+    else:
+        raise ValueError('Not the same stretch point')
 
     #### prepare analysis
     hzPxx = np.linspace(0,srate/2,int(nfft/2+1))
@@ -95,6 +100,7 @@ def compute_PxxCxyCyclefreq_for_cond(band_prep, session_eeg, cond, session_i, nb
     mask_hzCxy = (hzCxy>=freq_surrogates[0]) & (hzCxy<freq_surrogates[1])
     hzCxy = hzCxy[mask_hzCxy]
 
+    #### compute
     Cxy_for_cond = np.zeros(( np.size(data_tmp,0), len(hzCxy)))
     Pxx_for_cond = np.zeros(( np.size(data_tmp,0), len(hzPxx)))
     cyclefreq_for_cond = np.zeros(( np.size(data_tmp,0), nb_point_by_cycle))
@@ -111,7 +117,7 @@ def compute_PxxCxyCyclefreq_for_cond(band_prep, session_eeg, cond, session_i, nb
         y = respi
         hzPxx, Cxy = scipy.signal.coherence(x, y, fs=srate, window=hannw, nperseg=None, noverlap=noverlap, nfft=nfft)
 
-        x_stretch, trash = stretch_data(respfeatures_allcond.get(cond)[session_i], nb_point_by_cycle, x, srate)
+        x_stretch, trash = stretch_data(respfeatures_allcond[f's{session_eeg+1}'][cond][session_i], nb_point_by_cycle, x, srate)
         x_stretch_mean = np.mean(x_stretch, 0)
 
         Cxy_for_cond[n_chan,:] = Cxy[mask_hzCxy]
@@ -192,9 +198,115 @@ def compute_all_PxxCxyCyclefreq(session_eeg):
 
 
 
+#dict2reduce = surrogates_allcond
+def reduce_data(dict2reduce):
+
+    #### for Pxx and Cyclefreq
+    if np.sum([True for i in list(dict2reduce.keys()) if i in band_prep_list]) > 0:
+    
+        #### generate dict
+        dict_reduced = {}
+        for band_prep in band_prep_list:
+            dict_reduced[band_prep] = {}
+            for cond in conditions:
+                dict_reduced[band_prep][cond] = []
+
+        
+        for band_prep in band_prep_list:
+
+            for cond in conditions:
+
+                n_session = len(respfeatures_allcond[f's{session_eeg+1}'][cond])
+
+                #### reduce
+                if n_session == 1:
+                    dict_reduced[band_prep][cond].append(dict2reduce[band_prep][cond])
+
+                elif n_session > 1:
+                    
+                    for session_i in range(n_session):
+
+                        if session_i == 0:
+                            dict_reduced[band_prep][cond] = dict2reduce[band_prep][cond][session_i]
+                        else:
+                            dict_reduced[band_prep][cond] = (dict_reduced[band_prep][cond] + dict2reduce[band_prep][cond][session_i])/2
+
+    #### for Cxy
+    elif np.sum([True for i in list(dict2reduce.keys()) if i in conditions]) > 0:
+
+        #### generate dict
+        dict_reduced = {}
+        for cond in conditions:
+            dict_reduced[cond] = []
+
+        for cond in conditions:
+
+            n_session = len(respfeatures_allcond[f's{session_eeg+1}'][cond])
+
+            #### reduce
+            if n_session == 1:
+                dict_reduced[cond].append(dict2reduce[cond])
+
+            elif n_session > 1:
+                
+                for session_i in range(n_session):
+
+                    if session_i == 0:
+                        dict_reduced[cond] = dict2reduce[cond][session_i]
+                    else:
+                        dict_reduced[cond] = (dict_reduced[cond] + dict2reduce[cond][session_i])/2
+
+    #### for surrogates
+    else:
+        
+        #### generate dict
+        dict_reduced = {}
+        for key in list(surrogates_allcond.keys()):
+            dict_reduced[key] = {}
+            for cond in conditions:
+                dict_reduced[key][cond] = []
+
+        #key = 'Cxy'
+        for key in list(surrogates_allcond.keys()):
+
+            for cond in conditions:
+
+                n_session = len(respfeatures_allcond[f's{session_eeg+1}'][cond])
+
+                #### reduce
+                if n_session == 1:
+                    dict_reduced[key][cond].append(dict2reduce[cond])
+
+                elif n_session > 1:
+                    
+                    for session_i in range(n_session):
+
+                        if session_i == 0:
+                            dict_reduced[key][cond] = dict2reduce[key][cond][session_i]
+                        else:
+                            dict_reduced[key][cond] = (dict_reduced[key][cond] + dict2reduce[key][cond][session_i])/2
+    
+    #### verify
+    #cond = 'RD_SV'
+    
+    return dict_reduced
+
+                    
+
+
 
 def reduce_PxxCxy_cyclefreq(Pxx_allcond, Cxy_allcond, cyclefreq_allcond, surrogates_allcond):
 
+    
+    Pxx_allcond_red = reduce_data(Pxx_allcond)
+    cyclefreq_allcond_red = reduce_data(cyclefreq_allcond)
+
+    Cxy_allcond_red = reduce_data(Cxy_allcond)
+    surrogates_allcond_red = reduce_data(surrogates_allcond)
+
+    surrogates_allcond['cyclefreq_wb'].keys()
+    len(Cxy_allcond['FR_CV'])   
+    
     #### reduce data to one session
     respfeatures_allcond_adjust = {} # to conserve respi_allcond for TF
 
@@ -225,14 +337,7 @@ def reduce_PxxCxy_cyclefreq(Pxx_allcond, Cxy_allcond, cyclefreq_allcond, surroga
                 data_to_short['cyclefreq']['data'][band_prep] = cyclefreq_allcond[band_prep][cond]
                 data_to_short['cyclefreq']['surrogates'][band_prep] = surrogates_allcond[f'cyclefreq_{band_prep}'][cond]
 
-
-
-
-
-
-
-
-
+            #### short
             for data_short_i in range(len(respfeatures_allcond[f's{session_eeg+1}'][cond])):
 
                 if data_short_i == 0:

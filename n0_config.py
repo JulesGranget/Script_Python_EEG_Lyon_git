@@ -30,7 +30,11 @@ conditions_allsubjects = ['FR_CV', 'RD_CV', 'RD_FV', 'RD_SV']
 sujet_list = ['Pilote']
 
 band_prep_list = ['wb']
-freq_band_list = [{'theta' : [2,10], 'alpha' : [8,14], 'beta' : [10,40], 'whole' : [2,50]}, {'l_gamma' : [50, 80], 'h_gamma' : [80, 120]}]
+
+freq_band_dict = {'wb' : {'theta' : [2,10], 'alpha' : [8,14], 'beta' : [10,40]},
+                'lf' : {'theta' : [2,10], 'alpha' : [8,14], 'beta' : [10,40], 'whole' : [2,50]},
+                'hf' : {'l_gamma' : [50, 80], 'h_gamma' : [80, 120]} }
+
 
 session_protocol_EEG = ['2', '3', '4']
 

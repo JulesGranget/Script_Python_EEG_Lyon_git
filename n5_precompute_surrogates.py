@@ -169,6 +169,41 @@ def precompute_surrogates_cyclefreq(band_prep, session_eeg, cond, session_i):
 
 
 
+################################
+######## CHECK STATUS ########
+################################
+
+def check_precompute_status():
+
+    print('#### For Cxy to compute : ####')
+
+    os.chdir(os.path.join(path_precompute, sujet, 'PSD_Coh'))
+
+    to_compute = []
+    #session_eeg, band_prep, cond, session_i = 0, band_prep_list[0], 'RD_FV', 0
+    for session_eeg in range(3):
+        for band_prep in band_prep_list:
+            for cond in conditions:
+                for session_i in range(len(respfeatures_allcond[f's{session_eeg+1}'][cond])):
+                    to_compute.append(f'{sujet}_s{session_eeg+1}_{cond}_{str(session_i+1)}_Coh.npy')
+    
+    print([file_i for file_i in to_compute if file_i not in os.listdir() and file_i.find('cyclefreq') == -1])
+
+    print('#### For Cyclefreq to compute : ####')
+
+    os.chdir(os.path.join(path_precompute, sujet, 'PSD_Coh'))
+
+    to_compute = []
+    #session_eeg, band_prep, cond, session_i = 0, band_prep_list[0], 'RD_FV', 0
+    for session_eeg in range(3):
+        for band_prep in band_prep_list:
+            for cond in conditions:
+                for session_i in range(len(respfeatures_allcond[f's{session_eeg+1}'][cond])):
+                    to_compute.append(f'{sujet}_s{session_eeg+1}_{cond}_{str(session_i+1)}_cyclefreq_{band_prep}.npy')
+    
+    print([file_i for file_i in to_compute if file_i not in os.listdir() and file_i.find('Coh') == -1])
+
+
 
 ################################
 ######## EXECUTE ########
@@ -183,6 +218,9 @@ if __name__ == '__main__':
 
     #### params surrogates
     nwind, nfft, noverlap, hannw = get_params_spectral_analysis(srate)
+
+    #### indicate which file is missing
+    check_precompute_status()
 
     #### compute and save
     print('######## COMPUTE SURROGATES ########')
