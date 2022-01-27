@@ -47,7 +47,7 @@ srate = 1000
 
 odor_order = {
 
-'Pilote' : ['+', 'o', '-']
+'Pilote' : {'s1' : '+', 's2' : 'o', 's3' : '-'}
 
 }
 
