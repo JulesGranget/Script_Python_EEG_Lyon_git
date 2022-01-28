@@ -8,6 +8,7 @@ import mne
 import pandas as pd
 import respirationtools
 import joblib
+import pickle
 
 from n0_config import *
 from n0bis_analysis_functions import *
@@ -18,30 +19,13 @@ debug = False
 
 
 
-################################
-######## LOAD DATA ########
-################################
-
-#session_eeg = 0
-def get_all_info(session_eeg):
-
-    conditions, chan_list, chan_list_ieeg, srate = extract_chanlist_srate_conditions(conditions_allsubjects)
-    respfeatures_allcond = load_respfeatures(conditions)
-    respi_ratio_allcond = get_all_respi_ratio(session_eeg, conditions, respfeatures_allcond)
-    nwind, nfft, noverlap, hannw = get_params_spectral_analysis(srate)
-
-    return conditions, chan_list, chan_list_ieeg, srate, respfeatures_allcond, respi_ratio_allcond, nwind, nfft, noverlap, hannw
-
-
-
-
 
 ################################################
 ######## PSD & COH WHOLE COMPUTATION ########
 ################################################
 
 
-def load_surrogates_session(session_eeg):
+def load_surrogates_session(session_eeg, prms):
 
     os.chdir(os.path.join(path_precompute, sujet, 'PSD_Coh'))
 
@@ -51,19 +35,19 @@ def load_surrogates_session(session_eeg):
         surrogates_allcond[f'cyclefreq_{band_prep}'] = {}
 
         #cond = 'FR_CV'
-        for cond in conditions:
+        for cond in conditions_allsubjects:
 
-            if len(respfeatures_allcond[f's{session_eeg+1}'][cond]) == 1:
+            if prms['count_session'][f's{session_eeg+1}'][cond] == 1:
 
                 surrogates_allcond['Cxy'][cond] = [np.load(f'{sujet}_s{session_eeg+1}_{cond}_1_Coh.npy')]
                 surrogates_allcond[f'cyclefreq_{band_prep}'][cond] = [np.load(f'{sujet}_s{session_eeg+1}_{cond}_1_cyclefreq_{band_prep}.npy')]
 
-            elif len(respfeatures_allcond[f's{session_eeg+1}'][cond]) > 1:
+            elif prms['count_session'][f's{session_eeg+1}'][cond] > 1:
 
                 data_load_Cxy = []
                 data_load_cyclefreq = []
 
-                for session_i in range(len(respfeatures_allcond[f's{session_eeg+1}'][cond])):
+                for session_i in range(prms['count_session'][f's{session_eeg+1}'][cond]):
 
                     data_load_Cxy.append(np.load(f'{sujet}_s{session_eeg+1}_{cond}_{str(session_i+1)}_Coh.npy'))
                     data_load_cyclefreq.append(np.load(f'{sujet}_s{session_eeg+1}_{cond}_{str(session_i+1)}_cyclefreq_{band_prep}.npy'))                 
@@ -74,7 +58,7 @@ def load_surrogates_session(session_eeg):
     #### verif 
     if debug:
         for cond in list(surrogates_allcond['Cxy'].keys()):
-            for session_i in range(len(respfeatures_allcond[f's{session_eeg+1}'][cond])):
+            for session_i in range(prms['count_session'][f's{session_eeg+1}'][cond]):
                 print(f'#### for {cond}, session {session_i+1} :')
                 print('Cxy : ', surrogates_allcond['Cxy'][cond][session_i].shape)
                 print('cyclefreq : ', surrogates_allcond['cyclefreq_wb'][cond][session_i].shape)
@@ -86,12 +70,12 @@ def load_surrogates_session(session_eeg):
 
 
 #### compute Pxx & Cxy & Cyclefreq
-def compute_PxxCxyCyclefreq_for_cond(band_prep, session_eeg, cond, session_i, nb_point_by_cycle):
+def compute_PxxCxyCyclefreq_for_cond(band_prep, session_eeg, cond, session_i, nb_point_by_cycle, respfeatures_allcond, prms):
     
     print(cond)
 
     #### extract data
-    chan_i = chan_list.index('Respi')
+    chan_i = prms['chan_list'].index('Respi')
     respi = load_data(band_prep, session_eeg, cond, session_i)[chan_i,:]
     data_tmp = load_data(band_prep, session_eeg, cond, session_i)
     if stretch_point_surrogates == stretch_point_TF:
@@ -100,8 +84,8 @@ def compute_PxxCxyCyclefreq_for_cond(band_prep, session_eeg, cond, session_i, nb
         raise ValueError('Not the same stretch point')
 
     #### prepare analysis
-    hzPxx = np.linspace(0,srate/2,int(nfft/2+1))
-    hzCxy = np.linspace(0,srate/2,int(nfft/2+1))
+    hzPxx = np.linspace(0,srate/2,int(prms['nfft']/2+1))
+    hzCxy = np.linspace(0,srate/2,int(prms['nfft']/2+1))
     mask_hzCxy = (hzCxy>=freq_surrogates[0]) & (hzCxy<freq_surrogates[1])
     hzCxy = hzCxy[mask_hzCxy]
 
@@ -117,10 +101,10 @@ def compute_PxxCxyCyclefreq_for_cond(band_prep, session_eeg, cond, session_i, nb
             print('{:.2f}'.format(n_chan/np.size(data_tmp,0)))
 
         x = data_tmp[n_chan,:]
-        hzPxx, Pxx = scipy.signal.welch(x,fs=srate,window=hannw,nperseg=nwind,noverlap=noverlap,nfft=nfft)
+        hzPxx, Pxx = scipy.signal.welch(x,fs=srate,window=prms['hannw'],nperseg=prms['nwind'],noverlap=prms['noverlap'],nfft=prms['nfft'])
 
         y = respi
-        hzPxx, Cxy = scipy.signal.coherence(x, y, fs=srate, window=hannw, nperseg=None, noverlap=noverlap, nfft=nfft)
+        hzPxx, Cxy = scipy.signal.coherence(x, y, fs=srate, window=prms['hannw'], nperseg=None, noverlap=prms['noverlap'], nfft=prms['nfft'])
 
         x_stretch, trash = stretch_data(respfeatures_allcond[f's{session_eeg+1}'][cond][session_i], nb_point_by_cycle, x, srate)
         x_stretch_mean = np.mean(x_stretch, 0)
@@ -136,7 +120,7 @@ def compute_PxxCxyCyclefreq_for_cond(band_prep, session_eeg, cond, session_i, nb
 
 
 
-def compute_all_PxxCxyCyclefreq(session_eeg):
+def compute_all_PxxCxyCyclefreq(session_eeg, respfeatures_allcond, prms):
 
     #### initiate dict
     Cxy_allcond = {}
@@ -151,32 +135,32 @@ def compute_all_PxxCxyCyclefreq(session_eeg):
 
         print(band_prep)
 
-        for cond in conditions:
+        for cond in conditions_allsubjects:
 
-            if ( len(respfeatures_allcond[f's{session_eeg+1}'][cond]) == 1 ) & (band_prep == 'lf' or band_prep == 'wb'):
+            if ( prms['count_session'][f's{session_eeg+1}'][cond] == 1 ) & (band_prep == 'lf' or band_prep == 'wb'):
 
-                Pxx_for_cond, Cxy_for_cond, cyclefreq_for_cond = compute_PxxCxyCyclefreq_for_cond(band_prep, session_eeg, cond, 0, stretch_point_surrogates)
+                Pxx_for_cond, Cxy_for_cond, cyclefreq_for_cond = compute_PxxCxyCyclefreq_for_cond(band_prep, session_eeg, cond, 0, stretch_point_surrogates, respfeatures_allcond, prms)
 
                 Pxx_allcond[band_prep][cond] = [Pxx_for_cond]
                 Cxy_allcond[cond] = [Cxy_for_cond]
                 cyclefreq_allcond[band_prep][cond] = [cyclefreq_for_cond]
 
-            elif ( len(respfeatures_allcond[f's{session_eeg+1}'][cond]) == 1 ) & (band_prep == 'hf') :
+            elif ( prms['count_session'][f's{session_eeg+1}'][cond] == 1 ) & (band_prep == 'hf') :
 
-                Pxx_for_cond, Cxy_for_cond, cyclefreq_for_cond = compute_PxxCxyCyclefreq_for_cond(band_prep, session_eeg, cond, 0, stretch_point_surrogates)
+                Pxx_for_cond, Cxy_for_cond, cyclefreq_for_cond = compute_PxxCxyCyclefreq_for_cond(band_prep, session_eeg, cond, 0, stretch_point_surrogates, respfeatures_allcond, prms)
 
                 Pxx_allcond[band_prep][cond] = [Pxx_for_cond]
                 cyclefreq_allcond[band_prep][cond] = [cyclefreq_for_cond]
 
-            elif (len(respfeatures_allcond[f's{session_eeg+1}'][cond]) > 1) & (band_prep == 'lf' or band_prep == 'wb'):
+            elif ( prms['count_session'][f's{session_eeg+1}'][cond] > 1) & (band_prep == 'lf' or band_prep == 'wb'):
 
                 Pxx_load = []
                 Cxy_load = []
                 cyclefreq_load = []
 
-                for session_i in range(len(respfeatures_allcond[f's{session_eeg+1}'][cond])):
+                for session_i in range(prms['count_session'][f's{session_eeg+1}'][cond]):
 
-                    Pxx_for_cond, Cxy_for_cond, cyclefreq_for_cond = compute_PxxCxyCyclefreq_for_cond(band_prep, session_eeg, cond, session_i, stretch_point_surrogates)
+                    Pxx_for_cond, Cxy_for_cond, cyclefreq_for_cond = compute_PxxCxyCyclefreq_for_cond(band_prep, session_eeg, cond, session_i, stretch_point_surrogates, respfeatures_allcond, prms)
 
                     Pxx_load.append(Pxx_for_cond)
                     Cxy_load.append(Cxy_for_cond)
@@ -186,14 +170,14 @@ def compute_all_PxxCxyCyclefreq(session_eeg):
                 Cxy_allcond[cond] = Cxy_load
                 cyclefreq_allcond[band_prep][cond] = cyclefreq_load
 
-            elif (len(respfeatures_allcond[f's{session_eeg+1}'][cond]) > 1) & (band_prep == 'hf'):
+            elif (prms['count_session'][f's{session_eeg+1}'][cond] > 1) & (band_prep == 'hf'):
 
                 Pxx_load = []
                 cyclefreq_load = []
 
-                for session_i in range(len(respfeatures_allcond[f's{session_eeg+1}'][cond])):
+                for session_i in range(prms['count_session'][f's{session_eeg+1}'][cond]):
 
-                    Pxx_for_cond, Cxy_for_cond, cyclefreq_for_cond = compute_PxxCxyCyclefreq_for_cond(band_prep, session_eeg, cond, session_i, stretch_point_surrogates)
+                    Pxx_for_cond, Cxy_for_cond, cyclefreq_for_cond = compute_PxxCxyCyclefreq_for_cond(band_prep, session_eeg, cond, session_i, stretch_point_surrogates, respfeatures_allcond, prms)
 
                     Pxx_load.append(Pxx_for_cond)
                     cyclefreq_load.append(cyclefreq_for_cond)
@@ -209,7 +193,7 @@ def compute_all_PxxCxyCyclefreq(session_eeg):
 
 
 #dict2reduce = surrogates_allcond
-def reduce_data(dict2reduce):
+def reduce_data(dict2reduce, session_eeg, prms):
 
     #### for Pxx and Cyclefreq
     if np.sum([True for i in list(dict2reduce.keys()) if i in band_prep_list]) > 0:
@@ -218,14 +202,14 @@ def reduce_data(dict2reduce):
         dict_reduced = {}
         for band_prep in band_prep_list:
             dict_reduced[band_prep] = {}
-            for cond in conditions:
+            for cond in conditions_allsubjects:
                 dict_reduced[band_prep][cond] = []
 
         for band_prep in band_prep_list:
 
-            for cond in conditions:
+            for cond in conditions_allsubjects:
 
-                n_session = len(respfeatures_allcond[f's{session_eeg+1}'][cond])
+                n_session = prms['count_session'][f's{session_eeg+1}'][cond]
 
                 #### reduce
                 if n_session == 1:
@@ -242,21 +226,21 @@ def reduce_data(dict2reduce):
 
         #### verify
         for band_prep in band_prep_list:
-            for cond in conditions:
+            for cond in conditions_allsubjects:
                 if len(dict_reduced[band_prep][cond].shape) != 2:
                     raise ValueError(f'reducing false for Pxx or Cyclefreq : {band_prep}, {cond}')
 
     #### for Cxy
-    elif np.sum([True for i in list(dict2reduce.keys()) if i in conditions]) > 0:
+    elif np.sum([True for i in list(dict2reduce.keys()) if i in conditions_allsubjects]) > 0:
 
         #### generate dict
         dict_reduced = {}
-        for cond in conditions:
+        for cond in conditions_allsubjects:
             dict_reduced[cond] = []
 
-        for cond in conditions:
+        for cond in conditions_allsubjects:
 
-            n_session = len(respfeatures_allcond[f's{session_eeg+1}'][cond])
+            n_session = prms['count_session'][f's{session_eeg+1}'][cond]
 
             #### reduce
             if n_session == 1:
@@ -272,7 +256,7 @@ def reduce_data(dict2reduce):
                         dict_reduced[cond] = (dict_reduced[cond] + dict2reduce[cond][session_i])/2
 
         #### verify
-        for cond in conditions:
+        for cond in conditions_allsubjects:
             if len(dict_reduced[cond].shape) != 2:
                 raise ValueError(f'reducing false for Cxy :, {cond}')
 
@@ -283,15 +267,15 @@ def reduce_data(dict2reduce):
         dict_reduced = {}
         for key in list(dict2reduce.keys()):
             dict_reduced[key] = {}
-            for cond in conditions:
+            for cond in conditions_allsubjects:
                 dict_reduced[key][cond] = []
 
         #key = 'Cxy'
         for key in list(dict2reduce.keys()):
 
-            for cond in conditions:
+            for cond in conditions_allsubjects:
 
-                n_session = len(respfeatures_allcond[f's{session_eeg+1}'][cond])
+                n_session = prms['count_session'][f's{session_eeg+1}'][cond]
 
                 #### reduce
                 if n_session == 1:
@@ -309,11 +293,11 @@ def reduce_data(dict2reduce):
         #### verify
         for key in list(dict2reduce.keys()):
             if key == 'Cxy':
-                for cond in conditions:
+                for cond in conditions_allsubjects:
                     if len(dict_reduced[key][cond].shape) != 2:
                         raise ValueError(f'reducing false for Surrogates : {key}, {cond}')
             else:
-                for cond in conditions:
+                for cond in conditions_allsubjects:
                     if len(dict_reduced[key][cond].shape) != 3:
                         raise ValueError(f'reducing false for Surrogates : {key}, {cond}')
 
@@ -321,42 +305,88 @@ def reduce_data(dict2reduce):
 
                     
 
-def compute_respi_mean(respfeatures_allcond):
-
-    #### generate dict
-    respi_mean_allcond = {}
-    for session_eeg_i in range(3):
-        respi_mean_allcond[f's{session_eeg_i+1}'] = {}
-        for cond in conditions:
-            respi_mean_allcond[f's{session_eeg_i+1}'][cond] = np.array(())
-
-    #### fill dict
-    for session_eeg_i in range(3): 
-        for cond in conditions:
-            for session_i in range(len(respfeatures_allcond[f's{session_eeg_i+1}'][cond])):
-                respi_mean_allcond[f's{session_eeg_i+1}'][cond] = np.append(respi_mean_allcond[f's{session_eeg_i+1}'][cond], respfeatures_allcond[f's{session_eeg_i+1}'][cond][session_i]['cycle_freq'].values)
-
-    #### compute mean
-    for session_eeg_i in range(3): 
-        for cond in conditions:
-            for session_i in range(len(respfeatures_allcond[f's{session_eeg_i+1}'][cond])):
-                mean = np.mean(respi_mean_allcond[f's{session_eeg_i+1}'][cond])
-                respi_mean_allcond[f's{session_eeg_i+1}'][cond] =  float(f"{mean:.3f}")
-
-    return respi_mean_allcond
 
 
-def reduce_PxxCxy_cyclefreq(Pxx_allcond, Cxy_allcond, cyclefreq_allcond, surrogates_allcond):
 
-    
-    Pxx_allcond_red = reduce_data(Pxx_allcond)
-    cyclefreq_allcond_red = reduce_data(cyclefreq_allcond)
+def reduce_PxxCxy_cyclefreq(Pxx_allcond, Cxy_allcond, cyclefreq_allcond, surrogates_allcond, session_eeg, prms):
 
-    Cxy_allcond_red = reduce_data(Cxy_allcond)
-    surrogates_allcond_red = reduce_data(surrogates_allcond)
+    Pxx_allcond_red = reduce_data(Pxx_allcond, session_eeg, prms)
+    cyclefreq_allcond_red = reduce_data(cyclefreq_allcond, session_eeg, prms)
+
+    Cxy_allcond_red = reduce_data(Cxy_allcond, session_eeg, prms)
+    surrogates_allcond_red = reduce_data(surrogates_allcond, session_eeg, prms)
     
     return Pxx_allcond_red, cyclefreq_allcond_red, Cxy_allcond_red, surrogates_allcond_red
 
+
+
+
+
+
+def compute_reduced_PxxCxyCyclefreqSurrogates(session_eeg, respfeatures_allcond, surrogates_allcond, prms):
+
+
+    if os.path.exists(os.path.join(path_precompute, sujet, 'PSD_Coh', f'{sujet}_s{session_eeg+1}_Pxx_allcond.pkl')) == False:
+    
+        Pxx_allcond, Cxy_allcond, cyclefreq_allcond = compute_all_PxxCxyCyclefreq(session_eeg, respfeatures_allcond, prms)
+
+        Pxx_allcond, cyclefreq_allcond, Cxy_allcond, surrogates_allcond = reduce_PxxCxy_cyclefreq(Pxx_allcond, Cxy_allcond, cyclefreq_allcond, surrogates_allcond, session_eeg, prms)
+
+        save_Pxx_Cxy_Cyclefreq_Surrogates_allcond(session_eeg, Pxx_allcond, cyclefreq_allcond, Cxy_allcond, surrogates_allcond)
+
+        print('COMPUTE Pxx CF Cxy Surr')
+
+    else:
+
+        print('ALREADY COMPUTED')
+
+    print('done') 
+
+
+
+
+
+
+def save_Pxx_Cxy_Cyclefreq_Surrogates_allcond(session_eeg, Pxx_allcond, cyclefreq_allcond, Cxy_allcond, surrogates_allcond):
+
+    os.chdir(os.path.join(path_precompute, sujet, 'PSD_Coh'))
+
+    with open(f'{sujet}_s{session_eeg+1}_Pxx_allcond.pkl', 'wb') as f:
+        pickle.dump(Pxx_allcond, f)
+
+    with open(f'{sujet}_s{session_eeg+1}_Cxy_allcond.pkl', 'wb') as f:
+        pickle.dump(Cxy_allcond, f)
+
+    with open(f'{sujet}_s{session_eeg+1}_surrogates_allcond.pkl', 'wb') as f:
+        pickle.dump(surrogates_allcond, f)
+
+    with open(f'{sujet}_s{session_eeg+1}_cyclefreq_allcond.pkl', 'wb') as f:
+        pickle.dump(cyclefreq_allcond, f)
+
+
+
+
+def get_Pxx_Cxy_Cyclefreq_Surrogates_allcond(sujet, session_eeg):
+
+    source_path = os.getcwd()
+    
+    os.chdir(os.path.join(path_precompute, sujet, 'PSD_Coh'))
+        
+    with open(f'{sujet}_s{session_eeg+1}_Pxx_allcond.pkl', 'rb') as f:
+        Pxx_allcond = pickle.load(f)
+
+    with open(f'{sujet}_s{session_eeg+1}_Cxy_allcond.pkl', 'rb') as f:
+        Cxy_allcond = pickle.load(f)
+
+    with open(f'{sujet}_s{session_eeg+1}_surrogates_allcond.pkl', 'rb') as f:
+        surrogates_allcond = pickle.load(f)
+
+    with open(f'{sujet}_s{session_eeg+1}_cyclefreq_allcond.pkl', 'rb') as f:
+        cyclefreq_allcond = pickle.load(f)
+
+    os.chdir(source_path)
+
+    return Pxx_allcond, Cxy_allcond, surrogates_allcond, cyclefreq_allcond
 
 
 
@@ -366,26 +396,32 @@ def reduce_PxxCxy_cyclefreq(Pxx_allcond, Cxy_allcond, cyclefreq_allcond, surroga
 ################################################
 
 #n_chan = 0
-def plot_save_PSD_Coh(n_chan):
+def plot_save_PSD_Coh(n_chan, session_eeg):
+
+    #### load data
+    Pxx_allcond, Cxy_allcond, surrogates_allcond, cyclefreq_allcond = get_Pxx_Cxy_Cyclefreq_Surrogates_allcond(sujet, session_eeg)
+    prms = get_params(sujet)
+    respfeatures_allcond, respi_mean_allcond = load_respfeatures(sujet)
     
-    chan_name = chan_list_ieeg[n_chan]
+    #### compute
+    chan_name = prms['chan_list_ieeg'][n_chan]
 
     odor = odor_order[sujet][f's{session_eeg+1}']
 
-    if n_chan/len(chan_list_ieeg) % .2 <= 0.01:
-        print('{:.2f}'.format(n_chan/len(chan_list_ieeg)))
+    if n_chan/len(prms['chan_list_ieeg']) % .2 <= 0.01:
+        print('{:.2f}'.format(n_chan/len(prms['chan_list_ieeg'])))
 
-    hzPxx = np.linspace(0,srate/2,int(nfft/2+1))
-    hzCxy = np.linspace(0,srate/2,int(nfft/2+1))
+    hzPxx = np.linspace(0,srate/2,int(prms['nfft']/2+1))
+    hzCxy = np.linspace(0,srate/2,int(prms['nfft']/2+1))
     mask_hzCxy = (hzCxy>=freq_surrogates[0]) & (hzCxy<freq_surrogates[1])
     hzCxy = hzCxy[mask_hzCxy]
 
     for band_prep in band_prep_list:
 
-        fig, axs = plt.subplots(nrows=4, ncols=len(conditions))
-        plt.suptitle(sujet + '_' + chan_name)
+        fig, axs = plt.subplots(nrows=4, ncols=len(conditions_allsubjects))
+        plt.suptitle(f'{sujet}_{odor}_{chan_name}')
         
-        for c, cond in enumerate(conditions):
+        for c, cond in enumerate(conditions_allsubjects):
 
             respi_mean = respi_mean_allcond[f's{session_eeg+1}'][cond]
             
@@ -412,7 +448,7 @@ def plot_save_PSD_Coh(n_chan):
             ax.plot(surrogates_allcond[f'cyclefreq_{band_prep}'][cond][1, n_chan,:], color='c', linestyle='dotted')
             ax.plot(surrogates_allcond[f'cyclefreq_{band_prep}'][cond][2, n_chan,:], color='c', linestyle='dotted')
             if stretch_TF_auto:
-                ax.vlines(respi_ratio_allcond[cond]*stretch_point_surrogates, ymin=np.min( surrogates_allcond[f'cyclefreq_{band_prep}'][cond][2, n_chan,:] ), ymax=np.max( surrogates_allcond[f'cyclefreq_{band_prep}'][cond][1, n_chan,:] ), colors='r')
+                ax.vlines(prms['respi_ratio_allcond'][cond]*stretch_point_surrogates, ymin=np.min( surrogates_allcond[f'cyclefreq_{band_prep}'][cond][2, n_chan,:] ), ymax=np.max( surrogates_allcond[f'cyclefreq_{band_prep}'][cond][1, n_chan,:] ), colors='r')
             else:
                 ax.vlines(ratio_stretch_TF*stretch_point_TF, ymin=np.min( surrogates_allcond[f'cyclefreq_{band_prep}'][cond][2, n_chan,:] ), ymax=np.max( surrogates_allcond[f'cyclefreq_{band_prep}'][cond][1, n_chan,:] ), colors='r') 
         #plt.show()
@@ -438,111 +474,152 @@ def plot_save_PSD_Coh(n_chan):
 ################################
 
 #tf_mode = 'ITPC'
-def load_TF_ITPC(session_eeg, tf_mode):
+def compute_TF_ITPC(session_eeg, prms):
 
-    if tf_mode == 'TF':
-        print('######## LOAD TF ########')
-        os.chdir(os.path.join(path_precompute, sujet, 'TF'))
-    elif tf_mode == 'ITPC':
-        print('######## LOAD ITPC ########')
-        os.chdir(os.path.join(path_precompute, sujet, 'ITPC'))
+    for tf_mode in ['TF', 'ITPC']:
+    
+        if tf_mode == 'TF':
+            print('######## LOAD TF ########')
+            os.chdir(os.path.join(path_precompute, sujet, 'TF'))
+            if os.path.exists(os.path.join(path_precompute, sujet, 'TF', f'{sujet}_s{session_eeg+1}_tf_stretch_allcond.pkl')):
+                print('ALREADY COMPUTED')
+                continue
+            
+        elif tf_mode == 'ITPC':
+            print('######## LOAD ITPC ########')
+            os.chdir(os.path.join(path_precompute, sujet, 'ITPC'))
+            if os.path.exists(os.path.join(path_precompute, sujet, 'ITPC', f'{sujet}_s{session_eeg+1}_itpc_stretch_allcond.pkl')):
+                print('ALREADY COMPUTED')
+                continue
 
-    #### generate str to search file
-    freq_band_str = {}
+        #### generate str to search file
+        freq_band_str = {}
 
-    for band_prep in band_prep_list:
+        for band_prep in band_prep_list:
 
-        freq_band = freq_band_dict[band_prep]
+            freq_band = freq_band_dict[band_prep]
 
-        for band, freq in freq_band.items():
-            freq_band_str[band] = str(freq[0]) + '_' + str(freq[1])
+            for band, freq in freq_band.items():
+                freq_band_str[band] = str(freq[0]) + '_' + str(freq[1])
 
 
-    #### load file with reducing to one TF
+        #### load file with reducing to one TF
 
-    tf_stretch_allcond = {}
+        tf_stretch_allcond = {}
 
-    for band_prep in band_prep_list:
+        for band_prep in band_prep_list:
 
-        tf_stretch_allcond[band_prep] = {}
+            tf_stretch_allcond[band_prep] = {}
 
-        for cond in conditions:
+            for cond in conditions_allsubjects:
 
-            tf_stretch_onecond = {}
+                tf_stretch_onecond = {}
 
-            if len(respfeatures_allcond[f's{session_eeg+1}'][cond]) == 1:
+                if prms['count_session'][f's{session_eeg+1}'][cond] == 1:
 
-                #### generate file to load
-                load_file = []
-                for file in os.listdir(): 
-                    if file.find(cond) != -1:
-                        load_file.append(file)
-                    else:
-                        continue
-
-                #### impose good order in dict
-                for band, freq in freq_band_dict[band_prep].items():
-                    tf_stretch_onecond[band] = 0
-
-                #### file load
-                for file in load_file:
-
-                    for i, (band, freq) in enumerate(freq_band_dict[band_prep].items()):
-
-                        if file.find(freq_band_str[band]) != -1:
-                            tf_stretch_onecond[band] = np.load(file)
+                    #### generate file to load
+                    load_file = []
+                    for file in os.listdir(): 
+                        if file.find(cond) != -1:
+                            load_file.append(file)
                         else:
                             continue
-                            
-                tf_stretch_allcond[band_prep][cond] = tf_stretch_onecond
 
-            elif len(respfeatures_allcond[f's{session_eeg+1}'][cond]) > 1:
+                    #### impose good order in dict
+                    for band, freq in freq_band_dict[band_prep].items():
+                        tf_stretch_onecond[band] = 0
 
-                #### generate file to load
-                load_file = []
-                for file in os.listdir(): 
-                    if file.find(cond) != -1:
-                        load_file.append(file)
-                    else:
-                        continue
+                    #### file load
+                    for file in load_file:
 
-                #### implement count
-                for band, freq in freq_band_dict[band_prep].items():
-                    tf_stretch_onecond[band] = 0
+                        for i, (band, freq) in enumerate(freq_band_dict[band_prep].items()):
 
-                #### load file
-                for file in load_file:
+                            if file.find(freq_band_str[band]) != -1:
+                                tf_stretch_onecond[band] = np.load(file)
+                            else:
+                                continue
+                                
+                    tf_stretch_allcond[band_prep][cond] = tf_stretch_onecond
 
-                    for i, (band, freq) in enumerate(freq_band_dict[band_prep].items()):
+                elif prms['count_session'][f's{session_eeg+1}'][cond] > 1:
 
-                        if file.find(freq_band_str[band]) != -1:
+                    #### generate file to load
+                    load_file = []
+                    for file in os.listdir(): 
+                        if file.find(cond) != -1:
+                            load_file.append(file)
+                        else:
+                            continue
 
-                            if np.sum(tf_stretch_onecond[band]) != 0:
+                    #### implement count
+                    for band, freq in freq_band_dict[band_prep].items():
+                        tf_stretch_onecond[band] = 0
 
-                                session_load_tmp = ( np.load(file) + tf_stretch_onecond[band] ) /2
-                                tf_stretch_onecond[band] = session_load_tmp
+                    #### load file
+                    for file in load_file:
+
+                        for i, (band, freq) in enumerate(freq_band_dict[band_prep].items()):
+
+                            if file.find(freq_band_str[band]) != -1:
+
+                                if np.sum(tf_stretch_onecond[band]) != 0:
+
+                                    session_load_tmp = ( np.load(file) + tf_stretch_onecond[band] ) /2
+                                    tf_stretch_onecond[band] = session_load_tmp
+
+                                else:
+                                    
+                                    tf_stretch_onecond[band] = np.load(file)
 
                             else:
-                                
-                                tf_stretch_onecond[band] = np.load(file)
 
-                        else:
+                                continue
 
-                            continue
+                    tf_stretch_allcond[band_prep][cond] = tf_stretch_onecond
 
-                tf_stretch_allcond[band_prep][cond] = tf_stretch_onecond
+        #### verif
+        for cond in conditions_allsubjects:
+            for band, freq in freq_band_dict[band_prep].items():
+                if len(tf_stretch_allcond[band_prep][cond][band]) != len(prms['chan_list_ieeg']) :
+                    print('ERROR FREQ BAND : ' + band)
+                    
+        #### save
+        if tf_mode == 'TF':
+            with open(f'{sujet}_s{session_eeg+1}_tf_stretch_allcond.pkl', 'wb') as f:
+                pickle.dump(tf_stretch_allcond, f)
+        elif tf_mode == 'ITPC':
+            with open(f'{sujet}_s{session_eeg+1}_itpc_stretch_allcond.pkl', 'wb') as f:
+                pickle.dump(tf_stretch_allcond, f)
 
-    #### verif
-    for cond in conditions:
-        for band, freq in freq_band_dict[band_prep].items():
-            if len(tf_stretch_allcond[band_prep][cond][band]) != len(chan_list_ieeg) :
-                print('ERROR FREQ BAND : ' + band)
-                
+    print('done')
+    
+
+
+
+
+
+def get_tf_itpc_stretch_allcond(session_eeg, tf_mode):
+
+    source_path = os.getcwd()
+
+    if tf_mode == 'TF':
+
+        os.chdir(os.path.join(path_precompute, sujet, 'TF'))
+
+        with open(f'{sujet}_s{session_eeg+1}_tf_stretch_allcond.pkl', 'rb') as f:
+            tf_stretch_allcond = pickle.load(f)
+
+
+    elif tf_mode == 'ITPC':
+        
+        os.chdir(os.path.join(path_precompute, sujet, 'ITPC'))
+
+        with open(f'{sujet}_s{session_eeg+1}_itpc_stretch_allcond.pkl', 'rb') as f:
+            tf_stretch_allcond = pickle.load(f)
+
+    os.chdir(source_path)
 
     return tf_stretch_allcond
-
-
-
 
 
 
@@ -552,9 +629,13 @@ def load_TF_ITPC(session_eeg, tf_mode):
 
 
 
-#n_chan = 0
-#freq_band_i, freq_band = 1, freq_band_list[1]
-def save_TF_ITPC_n_chan(n_chan):
+#n_chan, session_eeg, tf_mode, band_prep = 0, 0, 'TF', 'wb'
+def save_TF_ITPC_n_chan(n_chan, session_eeg, tf_mode, band_prep):
+
+    #### load data
+    prms = get_params(sujet)
+    tf_stretch_allcond = get_tf_itpc_stretch_allcond(session_eeg, tf_mode)
+
 
     if tf_mode == 'TF':
         os.chdir(os.path.join(path_results, sujet, 'TF', 'summary'))
@@ -563,10 +644,10 @@ def save_TF_ITPC_n_chan(n_chan):
     
     odor = odor_order[sujet][f's{session_eeg+1}']
 
-    chan_name = chan_list_ieeg[n_chan]
+    chan_name = prms['chan_list_ieeg'][n_chan]
 
-    if n_chan/len(chan_list_ieeg) % .2 <= .01:
-        print('{:.2f}'.format(n_chan/len(chan_list_ieeg)))
+    if n_chan/len(prms['chan_list_ieeg']) % .2 <= .01:
+        print('{:.2f}'.format(n_chan/len(prms['chan_list_ieeg'])))
 
     time = range(stretch_point_TF)
     freq_band = freq_band_dict[band_prep]
@@ -574,7 +655,7 @@ def save_TF_ITPC_n_chan(n_chan):
     #### determine plot scale
     scales = {'vmin_val' : np.array(()), 'vmax_val' : np.array(()), 'median_val' : np.array(())}
 
-    for c, cond in enumerate(conditions):
+    for c, cond in enumerate(conditions_allsubjects):
 
         for i, (band, freq) in enumerate(freq_band.items()) :
 
@@ -598,11 +679,11 @@ def save_TF_ITPC_n_chan(n_chan):
     nrows = len(freq_band)
 
     if band_prep == 'hf':
-        fig, axs = plt.subplots(nrows=nrows, ncols=len(conditions))
+        fig, axs = plt.subplots(nrows=nrows, ncols=len(conditions_allsubjects))
     else:
-        fig, axs = plt.subplots(nrows=nrows, ncols=len(conditions))
+        fig, axs = plt.subplots(nrows=nrows, ncols=len(conditions_allsubjects))
     
-    plt.suptitle(sujet + '_' + chan_name)
+    plt.suptitle(f'{sujet}_{odor}_{chan_name}')
 
     #### for plotting l_gamma down
     if band_prep == 'hf':
@@ -613,7 +694,7 @@ def save_TF_ITPC_n_chan(n_chan):
             freq_band_reversed[key_i] = freq_band[key_i]
         freq_band = freq_band_reversed
 
-    for c, cond in enumerate(conditions):
+    for c, cond in enumerate(conditions_allsubjects):
 
         #### plot
         for i, (band, freq) in enumerate(freq_band.items()) :
@@ -621,7 +702,7 @@ def save_TF_ITPC_n_chan(n_chan):
             data = tf_stretch_allcond[band_prep][cond][band][n_chan, :, :]
             frex = np.linspace(freq[0], freq[1], np.size(data,0))
         
-            if len(conditions) == 1:
+            if len(conditions_allsubjects) == 1:
                 ax = axs[i]
             else:
                 ax = axs[i,c]
@@ -635,7 +716,7 @@ def save_TF_ITPC_n_chan(n_chan):
                 ax.set_ylabel(band)
 
             if stretch_TF_auto:
-                ax.vlines(respi_ratio_allcond[cond][0]*stretch_point_TF, ymin=freq[0], ymax=freq[1], colors='g')
+                ax.vlines(prms['respi_ratio_allcond'][cond][0]*stretch_point_TF, ymin=freq[0], ymax=freq[1], colors='g')
             else:
                 ax.vlines(ratio_stretch_TF*stretch_point_TF, ymin=freq[0], ymax=freq[1], colors='g')
     #plt.show()
@@ -653,16 +734,13 @@ def save_TF_ITPC_n_chan(n_chan):
 ########################################
 
 def compilation_compute_Pxx_Cxy_Cyclefreq(session_eeg):
-
-    conditions, chan_list, chan_list_ieeg, srate, respfeatures_allcond, respi_ratio_allcond, nwind, nfft, noverlap, hannw = get_all_info(session_eeg)
-    respi_mean_allcond = compute_respi_mean(respfeatures_allcond)
     
-    surrogates_allcond = load_surrogates_session(session_eeg)
+    prms = get_params(sujet)
+    respfeatures_allcond, respi_mean_allcond = load_respfeatures(sujet)
+        
+    surrogates_allcond = load_surrogates_session(session_eeg, prms)
 
-    Pxx_allcond, Cxy_allcond, cyclefreq_allcond = compute_all_PxxCxyCyclefreq(session_eeg)
-
-    Pxx_allcond, cyclefreq_allcond, Cxy_allcond, surrogates_allcond = reduce_PxxCxy_cyclefreq(Pxx_allcond, Cxy_allcond, cyclefreq_allcond, surrogates_allcond)
-
+    compute_reduced_PxxCxyCyclefreqSurrogates(session_eeg, respfeatures_allcond, surrogates_allcond, prms)
     
     #### compute joblib
 
@@ -670,19 +748,19 @@ def compilation_compute_Pxx_Cxy_Cyclefreq(session_eeg):
 
     print('######## PLOT & SAVE PSD AND COH ########')
 
-    joblib.Parallel(n_jobs = n_core, prefer = 'processes')(joblib.delayed(plot_save_PSD_Coh)(n_chan) for n_chan in range(len(chan_list_ieeg)))
+    joblib.Parallel(n_jobs = n_core, prefer = 'processes')(joblib.delayed(plot_save_PSD_Coh)(n_chan, session_eeg) for n_chan, session_eeg in zip(range(len(prms['chan_list_ieeg'])), [session_eeg]*len(prms['chan_list_ieeg'])))
 
     
 
 def compilation_compute_TF_ITPC(session_eeg):
 
-    conditions, chan_list, chan_list_ieeg, srate, respfeatures_allcond, respi_ratio_allcond, nwind, nfft, noverlap, hannw = get_all_info(session_eeg)
+    prms = get_params(sujet)
+
+    compute_TF_ITPC(session_eeg, prms)
     
     #tf_mode = 'TF'
     for tf_mode in ['TF', 'ITPC']:
         
-        tf_stretch_allcond = load_TF_ITPC(session_eeg, tf_mode)
-
         if tf_mode == 'TF':
             print('######## PLOT & SAVE TF ########')
         if tf_mode == 'ITPC':
@@ -690,7 +768,12 @@ def compilation_compute_TF_ITPC(session_eeg):
         
         for band_prep in band_prep_list: 
 
-            joblib.Parallel(n_jobs = n_core, prefer = 'processes')(joblib.delayed(save_TF_ITPC_n_chan)(n_chan) for n_chan in range(len(chan_list_ieeg)))
+            joblib.Parallel(n_jobs = n_core, prefer = 'processes')(joblib.delayed(save_TF_ITPC_n_chan)(n_chan, session_eeg, tf_mode, band_prep) for n_chan, session_eeg, tf_mode, band_prep in zip(range(len(prms['chan_list_ieeg'])), [session_eeg]*len(prms['chan_list_ieeg']), [tf_mode]*len(prms['chan_list_ieeg']), [band_prep]*len(prms['chan_list_ieeg'])))
+
+
+
+
+
 
 
 
@@ -700,62 +783,16 @@ def compilation_compute_TF_ITPC(session_eeg):
 
 if __name__ == '__main__':
 
-    ########################################
-    ######## LOCAL COMPUTING ######## 
-    ########################################
-
-
-    #### Params
-    session_eeg = 0
-
-    #### Pxx Cxy Cyclefreq
-    conditions, chan_list, chan_list_ieeg, srate, respfeatures_allcond, respi_ratio_allcond, nwind, nfft, noverlap, hannw = get_all_info(session_eeg)
-    respi_mean_allcond = compute_respi_mean(respfeatures_allcond)
-    
-    surrogates_allcond = load_surrogates_session(session_eeg)
-
-    Pxx_allcond, Cxy_allcond, cyclefreq_allcond = compute_all_PxxCxyCyclefreq(session_eeg)
-
-    Pxx_allcond, cyclefreq_allcond, Cxy_allcond, surrogates_allcond = reduce_PxxCxy_cyclefreq(Pxx_allcond, Cxy_allcond, cyclefreq_allcond, surrogates_allcond)
-
-    os.chdir(os.path.join(path_results, sujet, 'PSD_Coh', 'summary'))
-
-    print('######## PLOT & SAVE PSD AND COH ########')
-
-    joblib.Parallel(n_jobs = n_core, prefer = 'processes')(joblib.delayed(plot_save_PSD_Coh)(n_chan) for n_chan in range(len(chan_list_ieeg)))
-
-    #### TF ITPC
-    conditions, chan_list, chan_list_ieeg, srate, respfeatures_allcond, respi_ratio_allcond, nwind, nfft, noverlap, hannw = get_all_info(session_eeg)
-    
-    #tf_mode = 'TF'
-    for tf_mode in ['TF', 'ITPC']:
-        
-        tf_stretch_allcond = load_TF_ITPC(session_eeg, tf_mode)
-
-        if tf_mode == 'TF':
-            print('######## PLOT & SAVE TF ########')
-        if tf_mode == 'ITPC':
-            print('######## PLOT & SAVE ITPC ########')
-        
-        for band_prep in band_prep_list: 
-
-            joblib.Parallel(n_jobs = n_core, prefer = 'processes')(joblib.delayed(save_TF_ITPC_n_chan)(n_chan) for n_chan in range(len(chan_list_ieeg)))
-
-
-    ########################
-    ######## SLURM ########
-    ########################
-
-
+    #session_eeg = 0
     for session_eeg in range(3):
     
         #### Pxx Cxy CycleFreq
-        #compilation_compute_Pxx_Cxy_Cyclefreq(session_eeg)
+        #compilation_compute_Pxx_Cxy_Cyclefreq(session_eeg_i)
         execute_function_in_slurm_bash('n7_power_analysis', 'compilation_compute_Pxx_Cxy_Cyclefreq', [session_eeg])
 
 
         #### TF & ITPC
-        #compilation_compute_TF_ITPC(session_eeg)
+        #compilation_compute_TF_ITPC(session_eeg_i)
         execute_function_in_slurm_bash('n7_power_analysis', 'compilation_compute_TF_ITPC', [session_eeg])
 
     

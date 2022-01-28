@@ -416,11 +416,69 @@ def generate_folder_structure(sujet):
 
 
 
-############################
-######## LOAD DATA ########
-############################
+################################
+######## LOAD PARAMS ########
+################################
 
-def extract_chanlist_srate_conditions(conditions_allsubjects):
+
+def count_all_session(sujet):
+
+    #### extract respfeatures
+    respfeatures_allcond, respi_mean_allcond = load_respfeatures(sujet)
+    
+    #### generate dict
+    count_session = {}
+    for session_eeg in range(3):
+        count_session[f's{session_eeg+1}'] = {}
+        for cond in conditions_allsubjects:
+            count_session[f's{session_eeg+1}'][cond] = 0
+
+    #### fill
+    for session_eeg in range(3):
+        for cond in conditions_allsubjects:
+            count_session[f's{session_eeg+1}'][cond] = len(respfeatures_allcond[f's{session_eeg+1}'][cond])
+
+    return count_session
+
+
+#session_eeg = 0
+def get_params(sujet):
+
+    conditions, chan_list, chan_list_ieeg, srate = extract_chanlist_srate_conditions(sujet, conditions_allsubjects)
+    respi_ratio_allcond = get_all_respi_ratio(sujet)
+    nwind, nfft, noverlap, hannw = get_params_spectral_analysis(srate)
+    count_session = count_all_session(sujet)
+
+    params = {'conditions' : conditions, 'chan_list' : chan_list, 'chan_list_ieeg' : chan_list_ieeg, 'srate' : srate, 
+    'nwind' : nwind, 'nfft' : nfft, 'noverlap' : noverlap, 'hannw' : hannw,
+    'count_session' : count_session, 'respi_ratio_allcond' : respi_ratio_allcond}
+
+    return params
+
+
+
+def get_srate(sujet):
+
+    path_source = os.getcwd()
+    
+    os.chdir(os.path.join(path_prep, sujet, 'sections'))
+
+    raw = mne.io.read_raw_fif(sujet + '_FR_CV_1_lf.fif', preload=True, verbose='critical')
+    
+    srate = int(raw.info['sfreq'])
+
+    #### go back to path source
+    os.chdir(path_source)
+
+    #### free memory
+    del raw
+
+    return srate
+
+
+
+
+def extract_chanlist_srate_conditions(sujet, conditions_allsubjects):
 
     path_source = os.getcwd()
     
@@ -505,6 +563,13 @@ def extract_chanlist_srate_conditions_for_sujet(sujet_tmp, conditions_allsubject
 
 
 
+############################
+######## LOAD DATA ########
+############################
+
+
+
+
 def load_data(band_prep, session_eeg, cond, session_i):
 
     path_source = os.getcwd()
@@ -562,23 +627,7 @@ def load_data_sujet(sujet_tmp, band_prep, cond, session_i):
 
     return data
 
-def get_srate(sujet):
 
-    path_source = os.getcwd()
-    
-    os.chdir(os.path.join(path_prep, sujet, 'sections'))
-
-    raw = mne.io.read_raw_fif(sujet + '_FR_CV_1_lf.fif', preload=True, verbose='critical')
-    
-    srate = int(raw.info['sfreq'])
-
-    #### go back to path source
-    os.chdir(path_source)
-
-    #### free memory
-    del raw
-
-    return srate
 
 
 
@@ -586,7 +635,7 @@ def get_srate(sujet):
 ######## LOAD RESPI FEATURES ########
 ########################################
 
-def load_respfeatures(conditions):
+def load_respfeatures(sujet):
 
     path_source = os.getcwd()
     
@@ -606,7 +655,7 @@ def load_respfeatures(conditions):
 
         respfeatures_allcond[f's{session_eeg+1}'] = {}
 
-        for cond in conditions:
+        for cond in conditions_allsubjects:
 
             load_i = []
             for session_i, session_name in enumerate(respfeatures_listdir_clean):
@@ -622,51 +671,77 @@ def load_respfeatures(conditions):
                 data.append(pd.read_excel(load_name))
 
             respfeatures_allcond[f's{session_eeg+1}'][cond] = data
+
+    #### generate dict
+    respi_mean_allcond = {}
+    for session_eeg_i in range(3):
+        respi_mean_allcond[f's{session_eeg_i+1}'] = {}
+        for cond in conditions_allsubjects:
+            respi_mean_allcond[f's{session_eeg_i+1}'][cond] = np.array(())
+
+    #### fill dict
+    for session_eeg_i in range(3): 
+        for cond in conditions_allsubjects:
+            for session_i in range(len(respfeatures_allcond[f's{session_eeg_i+1}'][cond])):
+                respi_mean_allcond[f's{session_eeg_i+1}'][cond] = np.append(respi_mean_allcond[f's{session_eeg_i+1}'][cond], respfeatures_allcond[f's{session_eeg_i+1}'][cond][session_i]['cycle_freq'].values)
+
+    #### compute mean
+    for session_eeg_i in range(3): 
+        for cond in conditions_allsubjects:
+            for session_i in range(len(respfeatures_allcond[f's{session_eeg_i+1}'][cond])):
+                mean = np.mean(respi_mean_allcond[f's{session_eeg_i+1}'][cond])
+                respi_mean_allcond[f's{session_eeg_i+1}'][cond] =  float(f"{mean:.3f}")
     
     #### go back to path source
     os.chdir(path_source)
 
-    return respfeatures_allcond
+    return respfeatures_allcond, respi_mean_allcond
 
 
 
 
-def get_all_respi_ratio(session_eeg, conditions, respfeatures_allcond):
+def get_all_respi_ratio(sujet):
+    
+    respfeatures_allcond, respi_mean_allcond = load_respfeatures(sujet)
     
     respi_ratio_allcond = {}
 
-    for cond in conditions:
+    for session_eeg in range(3):
 
-        if len(respfeatures_allcond[f's{session_eeg+1}'][cond]) == 1:
+        respi_ratio_allcond[f's{session_eeg+1}'] = {}
 
-            mean_cycle_duration = np.mean(respfeatures_allcond[f's{session_eeg+1}'][cond][0][['insp_duration', 'exp_duration']].values, axis=0)
-            mean_inspi_ratio = mean_cycle_duration[0]/mean_cycle_duration.sum()
+        for cond in conditions_allsubjects:
 
-            respi_ratio_allcond[cond] = [ mean_inspi_ratio ]
+            if len(respfeatures_allcond[f's{session_eeg+1}'][cond]) == 1:
 
-        elif len(respfeatures_allcond[f's{session_eeg+1}'][cond]) > 1:
+                mean_cycle_duration = np.mean(respfeatures_allcond[f's{session_eeg+1}'][cond][0][['insp_duration', 'exp_duration']].values, axis=0)
+                mean_inspi_ratio = mean_cycle_duration[0]/mean_cycle_duration.sum()
 
-            data_to_short = []
+                respi_ratio_allcond[cond] = [ mean_inspi_ratio ]
 
-            for session_i in range(len(respfeatures_allcond[f's{session_eeg+1}'][cond])):   
+            elif len(respfeatures_allcond[f's{session_eeg+1}'][cond]) > 1:
+
+                data_to_short = []
+
+                for session_i in range(len(respfeatures_allcond[f's{session_eeg+1}'][cond])):   
+                    
+                    if session_i == 0 :
+
+                        mean_cycle_duration = np.mean(respfeatures_allcond[f's{session_eeg+1}'][cond][session_i][['insp_duration', 'exp_duration']].values, axis=0)
+                        mean_inspi_ratio = mean_cycle_duration[0]/mean_cycle_duration.sum()
+                        data_to_short = [ mean_inspi_ratio ]
+
+                    elif session_i > 0 :
+
+                        mean_cycle_duration = np.mean(respfeatures_allcond[f's{session_eeg+1}'][cond][session_i][['insp_duration', 'exp_duration']].values, axis=0)
+                        mean_inspi_ratio = mean_cycle_duration[0]/mean_cycle_duration.sum()
+
+                        data_replace = [(data_to_short[0] + mean_inspi_ratio) / 2]
+
+                        data_to_short = data_replace.copy()
                 
-                if session_i == 0 :
-
-                    mean_cycle_duration = np.mean(respfeatures_allcond[f's{session_eeg+1}'][cond][session_i][['insp_duration', 'exp_duration']].values, axis=0)
-                    mean_inspi_ratio = mean_cycle_duration[0]/mean_cycle_duration.sum()
-                    data_to_short = [ mean_inspi_ratio ]
-
-                elif session_i > 0 :
-
-                    mean_cycle_duration = np.mean(respfeatures_allcond[f's{session_eeg+1}'][cond][session_i][['insp_duration', 'exp_duration']].values, axis=0)
-                    mean_inspi_ratio = mean_cycle_duration[0]/mean_cycle_duration.sum()
-
-                    data_replace = [(data_to_short[0] + mean_inspi_ratio) / 2]
-
-                    data_to_short = data_replace.copy()
-            
-            # to put in list
-            respi_ratio_allcond[cond] = data_to_short 
+                # to put in list
+                respi_ratio_allcond[cond] = data_to_short 
 
     return respi_ratio_allcond
 

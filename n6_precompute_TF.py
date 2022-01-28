@@ -117,7 +117,7 @@ def precompute_tf(session_eeg, cond, session_i, band_prep_list):
 
     print('TF PRECOMPUTE')
 
-    respfeatures_allcond = load_respfeatures(conditions_allsubjects)
+    respfeatures_allcond, respi_mean_allcond = load_respfeatures(sujet)
     conditions, chan_list, chan_list_ieeg, srate = extract_chanlist_srate_conditions(conditions_allsubjects)
 
     #### select prep to load
@@ -227,7 +227,7 @@ def precompute_tf_itpc(session_eeg, cond, session_i, band_prep_list):
 
     print('ITPC PRECOMPUTE')
 
-    respfeatures_allcond = load_respfeatures(conditions_allsubjects)
+    respfeatures_allcond, respi_mean_allcond = load_respfeatures(sujet)
     conditions, chan_list, chan_list_ieeg, srate = extract_chanlist_srate_conditions(conditions_allsubjects)
     
     #### select prep to load
@@ -388,7 +388,7 @@ if __name__ == '__main__':
 
     #### load data
     conditions, chan_list, chan_list_ieeg, srate = extract_chanlist_srate_conditions(conditions_allsubjects)
-    respfeatures_allcond = load_respfeatures(conditions)
+    respfeatures_allcond, respi_mean_allcond = load_respfeatures(sujet)
 
     #### check status
     check_precompute_status()

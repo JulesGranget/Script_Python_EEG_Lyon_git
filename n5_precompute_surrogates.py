@@ -109,7 +109,7 @@ def precompute_surrogates_cyclefreq(band_prep, session_eeg, cond, session_i):
     
     print(cond)
 
-    respfeatures_allcond = load_respfeatures(conditions_allsubjects)
+    respfeatures_allcond, respi_mean_allcond = load_respfeatures(sujet)
 
     os.chdir(os.path.join(path_precompute, sujet, 'PSD_Coh'))
 
@@ -214,7 +214,7 @@ if __name__ == '__main__':
 
     #### load data
     conditions, chan_list, chan_list_ieeg, srate = extract_chanlist_srate_conditions(conditions_allsubjects)
-    respfeatures_allcond = load_respfeatures(conditions_allsubjects)
+    respfeatures_allcond, respi_mean_allcond = load_respfeatures(sujet)
 
     #### params surrogates
     nwind, nfft, noverlap, hannw = get_params_spectral_analysis(srate)
