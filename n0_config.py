@@ -295,6 +295,7 @@ nfrex_lf = 50
 nfrex_wb = 50
 ncycle_list_lf = [7, 15]
 ncycle_list_hf = [20, 30]
+ncycle_list_wb = [7, 30]
 srate_dw = 10
 
 

@@ -1,8 +1,6 @@
 
 
 import os
-from unicodedata import name
-from matplotlib import lines
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.signal
@@ -219,6 +217,10 @@ def execute_function_in_slurm(name_script, name_function, params):
 
 
 
+
+
+
+#name_script, name_function, params = 'n9_fc_analysis', 'compute_pli_ispc_allband', [sujet]
 def execute_function_in_slurm_bash(name_script, name_function, params):
 
     scritp_path = os.getcwd()
@@ -354,6 +356,7 @@ def generate_folder_structure(sujet):
     construct_token = create_folder('ITPC', construct_token)
     construct_token = create_folder('TF', construct_token)
     construct_token = create_folder('PSD_Coh', construct_token)
+    construct_token = create_folder('FC', construct_token)
 
         #### anatomy
     os.chdir(os.path.join(path_general, 'Analyses', 'anatomy'))
@@ -369,6 +372,7 @@ def generate_folder_structure(sujet):
     construct_token = create_folder('ITPC', construct_token)
     construct_token = create_folder('FC', construct_token)
     construct_token = create_folder('HRV', construct_token)
+    construct_token = create_folder('TOPOPLOT', construct_token)
 
             #### TF
     os.chdir(os.path.join(path_general, 'Analyses', 'results', sujet, 'TF'))
@@ -390,16 +394,6 @@ def generate_folder_structure(sujet):
     construct_token = create_folder('PLI', construct_token)
     construct_token = create_folder('ISPC', construct_token)
 
-                #### PLI
-    os.chdir(os.path.join(path_general, 'Analyses', 'results', sujet, 'FC', 'PLI'))
-    construct_token = create_folder('figures', construct_token)
-    construct_token = create_folder('matrix', construct_token)
-
-                #### ISPC
-    os.chdir(os.path.join(path_general, 'Analyses', 'results', sujet, 'FC', 'ISPC'))
-    construct_token = create_folder('figures', construct_token)
-    construct_token = create_folder('matrix', construct_token)
-
     #### Data
     os.chdir(os.path.join(path_general, 'Data'))
     construct_token = create_folder('raw_data', construct_token)
@@ -419,6 +413,30 @@ def generate_folder_structure(sujet):
 ################################
 ######## LOAD PARAMS ########
 ################################
+
+
+
+def get_pos_file(sujet):
+
+    path_source = os.getcwd()
+    
+    os.chdir(os.path.join(path_prep, sujet, 'sections'))
+
+    load_name = os.listdir()[0]
+
+    raw = mne.io.read_raw_fif(load_name, preload=True, verbose='critical')
+
+    raw.set_montage('standard_1020')
+    info = raw.info
+
+    #### go back to path source
+    os.chdir(path_source)
+
+    #### free memory
+    del raw
+
+    return info
+
 
 
 def count_all_session(sujet):
