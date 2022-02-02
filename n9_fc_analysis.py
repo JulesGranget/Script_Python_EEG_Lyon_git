@@ -81,7 +81,7 @@ def compute_fc_metrics_mat(session_eeg, band_prep, freq, band, cond, session_i, 
 
     #### compute all convolution
     os.chdir(path_memmap)
-    convolutions = np.memmap(f'{sujet}_{band_prep}_{band}_{cond}_{session_i}_fc_convolutions.dat', dtype=np.complex128, mode='w+', shape=(len(prms['chan_list_ieeg']), nfrex, data.shape[1]))
+    convolutions = np.memmap(f'{sujet}_s{session_eeg+1}_{band_prep}_{band}_{cond}_{session_i}_fc_convolutions.dat', dtype=np.complex128, mode='w+', shape=(len(prms['chan_list_ieeg']), nfrex, data.shape[1]))
 
     print('CONV')
 
@@ -166,7 +166,7 @@ def compute_fc_metrics_mat(session_eeg, band_prep, freq, band, cond, session_i, 
 
     #### supress mmap
     os.chdir(path_memmap)
-    os.remove(f'{sujet}_{band_prep}_{band}_{cond}_{session_i}_fc_convolutions.dat')
+    os.remove(f'{sujet}_s{session_eeg+1}_{band_prep}_{band}_{cond}_{session_i}_fc_convolutions.dat')
     
     return pli_mat, ispc_mat
 
@@ -306,12 +306,14 @@ def get_pli_ispc_allsession(sujet):
 
     if debug == True:
                 
-        for band, freq in freq_band_fc_analysis.items():
+        for band_prep in band_prep_list:
+            
+            for band, freq in freq_band_dict[band_prep].items():
 
-            for cond_i, cond in enumerate(conditions_allsubjects) :
+                for cond_i, cond in enumerate(conditions_allsubjects) :
 
-                print(band, cond, len(pli_allband[band][cond]))
-                print(band, cond, len(ispc_allband[band][cond]))
+                    print(band, cond, len(pli_allband[band][cond]))
+                    print(band, cond, len(ispc_allband[band][cond]))
 
 
         #### reduce to one cond
@@ -324,15 +326,17 @@ def get_pli_ispc_allsession(sujet):
         ispc_allband_reduced[f's{session_eeg+1}'] = {}
         pli_allband_reduced[f's{session_eeg+1}'] = {}
 
-        for band, freq in freq_band_fc_analysis.items():
+        for band_prep in band_prep_list:
 
-            ispc_allband_reduced[f's{session_eeg+1}'][band] = {}
-            pli_allband_reduced[f's{session_eeg+1}'][band] = {}
+            for band, freq in freq_band_dict[band_prep].items():
 
-            for cond_i, cond in enumerate(conditions_allsubjects) :
+                ispc_allband_reduced[f's{session_eeg+1}'][band] = {}
+                pli_allband_reduced[f's{session_eeg+1}'][band] = {}
 
-                ispc_allband_reduced[f's{session_eeg+1}'][band][cond] = []
-                pli_allband_reduced[f's{session_eeg+1}'][band][cond] = []
+                for cond_i, cond in enumerate(conditions_allsubjects) :
+
+                    ispc_allband_reduced[f's{session_eeg+1}'][band][cond] = []
+                    pli_allband_reduced[f's{session_eeg+1}'][band][cond] = []
 
     #### fill
     for session_eeg in range(3):
@@ -351,10 +355,10 @@ def get_pli_ispc_allsession(sujet):
 
                         if prms['count_session'][f's{session_eeg+1}'][cond] == 1:
 
-                            ispc_allband_reduced[f's{session_eeg+1}'][band][cond] = ispc_allband[band][cond][0]
-                            pli_allband_reduced[f's{session_eeg+1}'][band][cond] = pli_allband[band][cond][0]
+                            ispc_allband_reduced[f's{session_eeg+1}'][band][cond] = ispc_allband[f's{session_eeg+1}'][band][cond][0]
+                            pli_allband_reduced[f's{session_eeg+1}'][band][cond] = pli_allband[f's{session_eeg+1}'][band][cond][0]
 
-                        elif prms['count_session'][f's{session_eeg+1}'][band] > 1:
+                        elif prms['count_session'][f's{session_eeg+1}'][cond] > 1:
 
                             load_ispc = []
                             load_pli = []
@@ -363,8 +367,8 @@ def get_pli_ispc_allsession(sujet):
 
                                 if session_i == 0 :
 
-                                    load_ispc.append(ispc_allband[band][cond][session_i])
-                                    load_pli.append(pli_allband[band][cond][session_i])
+                                    load_ispc.append(ispc_allband[f's{session_eeg+1}'][band][cond][session_i])
+                                    load_pli.append(pli_allband[f's{session_eeg+1}'][band][cond][session_i])
 
                                 else :
                                 
@@ -426,30 +430,34 @@ def save_fig_FC(pli_allband_reduced, ispc_allband_reduced, prms):
     #            
 
     #### identify scale
-    scale = {'ispc' : {'min' : {}, 'max' : {}}, 'pli' : {'min' : {}, 'max' : {}}}
+    scale = {}
     for session_eeg in range(3):
 
-        scale['ispc']['max'][f's{session_eeg+1}'] = {}
-        scale['ispc']['min'][f's{session_eeg+1}'] = {}
-        scale['pli']['max'][f's{session_eeg+1}'] = {}
-        scale['pli']['min'][f's{session_eeg+1}'] = {}
+        scale[f's{session_eeg+1}'] = {'ispc' : {'min' : {}, 'max' : {}}, 'pli' : {'min' : {}, 'max' : {}}}
+
+        scale[f's{session_eeg+1}']['ispc']['max'] = {}
+        scale[f's{session_eeg+1}']['ispc']['min'] = {}
+        scale[f's{session_eeg+1}']['pli']['max'] = {}
+        scale[f's{session_eeg+1}']['pli']['min'] = {}
     
-        for band, freq in freq_band_fc_analysis.items():
+        for band_prep in band_prep_list:
 
-            band_ispc = {'min' : [], 'max' : []}
-            band_pli = {'min' : [], 'max' : []}
+            for band, freq in freq_band_dict[band_prep].items():
 
-            for cond_i, cond in enumerate(conditions_allsubjects):
-                band_ispc['max'].append(np.max(ispc_allband_reduced[f's{session_eeg+1}'][band][cond]))
-                band_ispc['min'].append(np.min(ispc_allband_reduced[f's{session_eeg+1}'][band][cond]))
-                
-                band_pli['max'].append(np.max(pli_allband_reduced[f's{session_eeg+1}'][band][cond]))
-                band_pli['min'].append(np.min(pli_allband_reduced[f's{session_eeg+1}'][band][cond]))
+                band_ispc = {'min' : [], 'max' : []}
+                band_pli = {'min' : [], 'max' : []}
 
-            scale['ispc']['max'][f's{session_eeg+1}'][band] = np.max(band_ispc['max'])
-            scale['ispc']['min'][f's{session_eeg+1}'][band] = np.min(band_ispc['min'])
-            scale['pli']['max'][f's{session_eeg+1}'][band] = np.max(band_pli['max'])
-            scale['pli']['min'][f's{session_eeg+1}'][band] = np.min(band_pli['min'])
+                for cond_i, cond in enumerate(conditions_allsubjects):
+                    band_ispc['max'].append(np.max(ispc_allband_reduced[f's{session_eeg+1}'][band][cond]))
+                    band_ispc['min'].append(np.min(ispc_allband_reduced[f's{session_eeg+1}'][band][cond]))
+                    
+                    band_pli['max'].append(np.max(pli_allband_reduced[f's{session_eeg+1}'][band][cond]))
+                    band_pli['min'].append(np.min(pli_allband_reduced[f's{session_eeg+1}'][band][cond]))
+
+                scale[f's{session_eeg+1}']['ispc']['max'][band] = np.max(band_ispc['max'])
+                scale[f's{session_eeg+1}']['ispc']['min'][band] = np.min(band_ispc['min'])
+                scale[f's{session_eeg+1}']['pli']['max'][band] = np.max(band_pli['max'])
+                scale[f's{session_eeg+1}']['pli']['min'][band] = np.min(band_pli['min'])
 
 
     #### ISPC
@@ -459,41 +467,44 @@ def save_fig_FC(pli_allband_reduced, ispc_allband_reduced, prms):
     odor_list = odor_order[sujet]
     nrows, ncols = len(odor_list), len(conditions_allsubjects)
 
-    #band_prep_i, band_prep, nchan, band, freq = 0, 'lf', 0, 'theta', [2, 10]
-    for band, freq in freq_band_fc_analysis.items():
+    #band_prep, band, freq = 'wb', 'theta', [2, 10]
+    for band_prep in band_prep_list:
 
-        #### graph
-        fig = plt.figure(facecolor='black')
-        for session_eeg_i, session_eeg in range(3):
-            count_odor = (session_eeg_i+1)*ncols
-            for cond_i, cond in enumerate(conditions_allsubjects):
-                mne.viz.plot_connectivity_circle(ispc_allband_reduced[f's{session_eeg+1}'][band][cond], node_names=prms['chan_list_ieeg'], n_lines=None, title=cond, show=False, padding=7, fig=fig, subplot=(nrows, ncols, count_odor+cond_i+1))
-        plt.suptitle('ISPC_' + band, color='w')
-        fig.set_figheight(10)
-        fig.set_figwidth(12)
-        #fig.show()
+        for band, freq in freq_band_dict[band_prep].items():
 
-        fig.savefig(sujet + '_ISPC_' + band + '_graph', dpi = 100)
+            #### graph
+            fig = plt.figure(facecolor='black')
+            for session_eeg in range(3):
+                count_odor = (session_eeg)*(ncols)
+                for cond_i, cond in enumerate(conditions_allsubjects):
+                    mne.viz.plot_connectivity_circle(ispc_allband_reduced[f's{session_eeg+1}'][band][cond], node_names=prms['chan_list_ieeg'], n_lines=None, title=cond, show=False, padding=7, fig=fig, subplot=(nrows, ncols, count_odor+cond_i+1))
+            plt.suptitle('ISPC_' + band, color='w')
+            fig.set_figheight(10)
+            fig.set_figwidth(12)
+            #fig.show()
 
-    
-        #### matrix
-        fig, axs = plt.subplots(ncols=ncols, nrows=nrows, figsize=(20,10))
+            fig.savefig(sujet + '_ISPC_' + band + '_graph.jpeg', dpi = 100)
 
-        for r, session_eeg in range(3):
-            for c, cond_i in range(conditions_allsubjects):
-                ax = axs[r, c]
-                ax.matshow(ispc_allband_reduced[f's{session_eeg+1}'][band][cond], vmin=scale['ispc']['min'][band], vmax=scale['ispc']['max'][band])
-                if r == 0:
-                    ax.set_title(cond)
-                if c == 0:
-                    ax.set_ylabel(odor_list[r])
-                ax.set_yticks(range(len(prms['chan_list_ieeg'])))
-                ax.set_yticklabels(prms['chan_list_ieeg'])
-                    
-        plt.suptitle('ISPC_' + band)
-        #plt.show()
-                    
-        fig.savefig(sujet + '_ISPC_' + band + '_mat', dpi = 100)
+        
+            #### matrix
+            fig, axs = plt.subplots(ncols=ncols, nrows=nrows, figsize=(20,10))
+
+            for session_eeg in range(3):
+                r = session_eeg
+                for c, cond_i in enumerate(conditions_allsubjects):
+                    ax = axs[r, c]
+                    ax.matshow(ispc_allband_reduced[f's{session_eeg+1}'][band][cond], vmin=scale[f's{session_eeg+1}']['ispc']['min'][band], vmax=scale[f's{session_eeg+1}']['ispc']['max'][band])
+                    if r == 0:
+                        ax.set_title(cond)
+                    if c == 0:
+                        ax.set_ylabel(f"odor_{odor_list[f's{session_eeg+1}']}")
+                    ax.set_yticks(range(len(prms['chan_list_ieeg'])))
+                    ax.set_yticklabels(prms['chan_list_ieeg'])
+                        
+            plt.suptitle('ISPC_' + band)
+            #plt.show()
+                        
+            fig.savefig(sujet + '_ISPC_' + band + '_mat.jpeg', dpi = 100)
 
 
     #### PLI
@@ -503,41 +514,44 @@ def save_fig_FC(pli_allband_reduced, ispc_allband_reduced, prms):
     odor_list = odor_order[sujet]
     nrows, ncols = len(odor_list), len(conditions_allsubjects)
 
-    #band_prep_i, band_prep, nchan, band, freq = 0, 'lf', 0, 'theta', [2, 10]
-    for band, freq in freq_band_fc_analysis.items():
+    #band_prep, band, freq = 'wb', 'theta', [2, 10]
+    for band_prep in band_prep_list:
 
-        #### graph
-        fig = plt.figure(facecolor='black')
-        for session_eeg_i, session_eeg in range(3):
-            count_odor = (session_eeg_i+1)*ncols
-            for cond_i, cond in enumerate(conditions_allsubjects):
-                mne.viz.plot_connectivity_circle(pli_allband_reduced[f's{session_eeg+1}'][band][cond], node_names=prms['chan_list_ieeg'], n_lines=None, title=cond, show=False, padding=7, fig=fig, subplot=(nrows, ncols, count_odor+cond_i+1))
-        plt.suptitle('PLI_' + band, color='w')
-        fig.set_figheight(10)
-        fig.set_figwidth(12)
-        #fig.show()
+        for band, freq in freq_band_dict[band_prep].items():
 
-        fig.savefig(sujet + '_PLI_' + band + '_graph', dpi = 100)
+            #### graph
+            fig = plt.figure(facecolor='black')
+            for session_eeg in range(3):
+                count_odor = (session_eeg)*(ncols)
+                for cond_i, cond in enumerate(conditions_allsubjects):
+                    mne.viz.plot_connectivity_circle(pli_allband_reduced[f's{session_eeg+1}'][band][cond], node_names=prms['chan_list_ieeg'], n_lines=None, title=cond, show=False, padding=7, fig=fig, subplot=(nrows, ncols, count_odor+cond_i+1))
+            plt.suptitle('PLI_' + band, color='w')
+            fig.set_figheight(10)
+            fig.set_figwidth(12)
+            #fig.show()
 
-    
-        #### matrix
-        fig, axs = plt.subplots(ncols=ncols, nrows=nrows, figsize=(20,10))
+            fig.savefig(sujet + '_PLI_' + band + '_graph.jpeg', dpi = 100)
 
-        for r, session_eeg in range(3):
-            for c, cond_i in range(conditions_allsubjects):
-                ax = axs[r, c]
-                ax.matshow(pli_allband_reduced[f's{session_eeg+1}'][band][cond], vmin=scale['ispc']['min'][band], vmax=scale['ispc']['max'][band])
-                if r == 0:
-                    ax.set_title(cond)
-                if c == 0:
-                    ax.set_ylabel(odor_list[r])
-                ax.set_yticks(range(len(prms['chan_list_ieeg'])))
-                ax.set_yticklabels(prms['chan_list_ieeg'])
-                    
-        plt.suptitle('PLI_' + band)
-        #plt.show()
-                    
-        fig.savefig(sujet + '_PLI_' + band + '_mat', dpi = 100)
+        
+            #### matrix
+            fig, axs = plt.subplots(ncols=ncols, nrows=nrows, figsize=(20,10))
+
+            for session_eeg in range(3):
+                r = session_eeg
+                for c, cond_i in enumerate(conditions_allsubjects):
+                    ax = axs[r, c]
+                    ax.matshow(pli_allband_reduced[f's{session_eeg+1}'][band][cond], vmin=scale[f's{session_eeg+1}']['pli']['min'][band], vmax=scale[f's{session_eeg+1}']['pli']['max'][band])
+                    if r == 0:
+                        ax.set_title(cond)
+                    if c == 0:
+                        ax.set_ylabel(f"odor_{odor_list[f's{session_eeg+1}']}")
+                    ax.set_yticks(range(len(prms['chan_list_ieeg'])))
+                    ax.set_yticklabels(prms['chan_list_ieeg'])
+                        
+            plt.suptitle('PLI_' + band)
+            #plt.show()
+                        
+            fig.savefig(sujet + '_PLI_' + band + '_mat.jpeg', dpi = 100)
 
 
 
@@ -565,15 +579,17 @@ if __name__ == '__main__':
 
     #### params
     compute_metrics = True
-    plot_fig = True
+    plot_fig = False
 
     #### compute fc metrics
     if compute_metrics:
+        #session_eeg = 2
         for session_eeg in range(3):
-            #pli_allband_reduced, ispc_allband_reduced = compute_pli_ispc_allband(sujet)
+            #compute_pli_ispc_allband(sujet, session_eeg)
             execute_function_in_slurm_bash('n9_fc_analysis', 'compute_pli_ispc_allband', [sujet, session_eeg])
 
     #### save fig
     if plot_fig:
+
         save_fig_for_allsession(sujet)
 

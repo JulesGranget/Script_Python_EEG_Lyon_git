@@ -373,6 +373,7 @@ def generate_folder_structure(sujet):
     construct_token = create_folder('FC', construct_token)
     construct_token = create_folder('HRV', construct_token)
     construct_token = create_folder('TOPOPLOT', construct_token)
+    construct_token = create_folder('PSYCHO', construct_token)
 
             #### TF
     os.chdir(os.path.join(path_general, 'Analyses', 'results', sujet, 'TF'))
