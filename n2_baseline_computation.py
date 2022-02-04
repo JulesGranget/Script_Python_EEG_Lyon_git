@@ -115,6 +115,11 @@ def compute_and_save_baseline(sujet_i, session_i, band_prep):
         nfrex = nfrex_hf
         ncycle_list = np.linspace(ncycle_list_hf[0], ncycle_list_hf[1], nfrex)
 
+    if band_prep == 'wb':
+        wavetime = np.arange(-.5,.5,1/srate)
+        nfrex = nfrex_hf
+        ncycle_list = np.linspace(ncycle_list_wb[0], ncycle_list_wb[1], nfrex)
+
     #band, freq = 'theta', [2, 10]
     for band, freq in freq_band_dict[band_prep].items():
 
