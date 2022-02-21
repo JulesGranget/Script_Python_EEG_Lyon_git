@@ -116,7 +116,7 @@ def compute_and_save_baseline(sujet_i, session_i, band_prep):
         ncycle_list = np.linspace(ncycle_list_hf[0], ncycle_list_hf[1], nfrex)
 
     if band_prep == 'wb':
-        wavetime = np.arange(-.5,.5,1/srate)
+        wavetime = np.arange(-2,2,1/srate)
         nfrex = nfrex_hf
         ncycle_list = np.linspace(ncycle_list_wb[0], ncycle_list_wb[1], nfrex)
 

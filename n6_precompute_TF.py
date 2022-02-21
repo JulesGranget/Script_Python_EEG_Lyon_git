@@ -261,7 +261,7 @@ def precompute_tf_itpc(session_eeg, cond, session_i, band_prep_list):
                 ncycle_list = np.linspace(ncycle_list_hf[0], ncycle_list_hf[1], nfrex)
 
             elif band_prep == 'wb':
-                wavetime = np.arange(-.5,.5,1/srate)
+                wavetime = np.arange(-2,2,1/srate)
                 nfrex = nfrex_wb
                 ncycle_list = np.linspace(ncycle_list_wb[0], ncycle_list_wb[1], nfrex)
 

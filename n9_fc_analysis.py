@@ -58,7 +58,7 @@ def compute_fc_metrics_mat(session_eeg, band_prep, freq, band, cond, session_i, 
         ncycle_list = np.linspace(ncycle_list_lf[0], ncycle_list_lf[1], nfrex) 
 
     if band_prep == 'hf':
-        wavetime = np.arange(-.5,.5,1/srate)
+        wavetime = np.arange(-2,2,1/srate)
         nfrex = nfrex_hf
         ncycle_list = np.linspace(ncycle_list_hf[0], ncycle_list_hf[1], nfrex)
 
