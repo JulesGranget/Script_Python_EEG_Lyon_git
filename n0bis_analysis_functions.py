@@ -347,7 +347,6 @@ def generate_folder_structure(sujet):
     os.chdir(os.path.join(path_general, 'Analyses', 'preprocessing', sujet))
     construct_token = create_folder('sections', construct_token)
     construct_token = create_folder('info', construct_token)
-    construct_token = create_folder('baseline', construct_token)
 
         #### precompute
     os.chdir(os.path.join(path_general, 'Analyses', 'precompute'))
@@ -357,6 +356,8 @@ def generate_folder_structure(sujet):
     construct_token = create_folder('TF', construct_token)
     construct_token = create_folder('PSD_Coh', construct_token)
     construct_token = create_folder('FC', construct_token)
+    construct_token = create_folder('Baselines', construct_token)
+
 
         #### anatomy
     os.chdir(os.path.join(path_general, 'Analyses', 'anatomy'))
