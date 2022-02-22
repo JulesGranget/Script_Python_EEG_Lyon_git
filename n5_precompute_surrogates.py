@@ -49,7 +49,7 @@ def precompute_surrogates_coh(band_prep, session_eeg, cond, session_i):
     
     print(cond)
 
-    conditions, chan_list, chan_list_ieeg, srate = extract_chanlist_srate_conditions(conditions_allsubjects)
+    conditions, chan_list, chan_list_ieeg, srate = extract_chanlist_srate_conditions(sujet, conditions_allsubjects)
     nwind, nfft, noverlap, hannw = get_params_spectral_analysis(srate)
 
     data_tmp = load_data(band_prep, session_eeg, cond, session_i)
@@ -213,7 +213,7 @@ if __name__ == '__main__':
 
 
     #### load data
-    conditions, chan_list, chan_list_ieeg, srate = extract_chanlist_srate_conditions(conditions_allsubjects)
+    conditions, chan_list, chan_list_ieeg, srate = extract_chanlist_srate_conditions(sujet, conditions_allsubjects)
     respfeatures_allcond, respi_mean_allcond = load_respfeatures(sujet)
 
     #### params surrogates

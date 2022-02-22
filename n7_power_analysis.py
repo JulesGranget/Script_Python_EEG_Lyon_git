@@ -534,7 +534,7 @@ def compute_TF_ITPC(session_eeg, prms):
 
                         for i, (band, freq) in enumerate(freq_band_dict[band_prep].items()):
 
-                            if file.find(freq_band_str[band]) != -1:
+                            if (file.find(freq_band_str[band]) != -1) and (file.find(f's{session_eeg+1}') != -1):
                                 tf_stretch_onecond[band] = np.load(file)
                             else:
                                 continue
@@ -560,7 +560,7 @@ def compute_TF_ITPC(session_eeg, prms):
 
                         for i, (band, freq) in enumerate(freq_band_dict[band_prep].items()):
 
-                            if file.find(freq_band_str[band]) != -1:
+                            if (file.find(freq_band_str[band]) != -1) and (file.find(f's{session_eeg+1}') != -1):
 
                                 if np.sum(tf_stretch_onecond[band]) != 0:
 

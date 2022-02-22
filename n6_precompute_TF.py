@@ -42,7 +42,7 @@ def compute_stretch_tf(tf, session_eeg, cond, session_i, respfeatures_allcond, s
 def compute_stretch_tf_dB(session_eeg, tf, cond, session_i, respfeatures_allcond, stretch_point_TF, band, band_prep, nfrex):
 
     #### load baseline
-    os.chdir(os.path.join(path_prep, sujet, 'baseline'))
+    os.chdir(os.path.join(path_precompute, sujet, 'Baselines'))
     
     baselines = np.load(f'{sujet}_s{session_eeg+1}_{band}_baselines.npy')
 
@@ -118,7 +118,7 @@ def precompute_tf(session_eeg, cond, session_i, band_prep_list):
     print('TF PRECOMPUTE')
 
     respfeatures_allcond, respi_mean_allcond = load_respfeatures(sujet)
-    conditions, chan_list, chan_list_ieeg, srate = extract_chanlist_srate_conditions(conditions_allsubjects)
+    conditions, chan_list, chan_list_ieeg, srate = extract_chanlist_srate_conditions(sujet, conditions_allsubjects)
 
     #### select prep to load
     #band_prep_i, band_prep = 1, 'hf'
@@ -228,7 +228,7 @@ def precompute_tf_itpc(session_eeg, cond, session_i, band_prep_list):
     print('ITPC PRECOMPUTE')
 
     respfeatures_allcond, respi_mean_allcond = load_respfeatures(sujet)
-    conditions, chan_list, chan_list_ieeg, srate = extract_chanlist_srate_conditions(conditions_allsubjects)
+    conditions, chan_list, chan_list_ieeg, srate = extract_chanlist_srate_conditions(sujet, conditions_allsubjects)
     
     #### select prep to load
     for band_prep in band_prep_list:
@@ -387,7 +387,7 @@ if __name__ == '__main__':
 
 
     #### load data
-    conditions, chan_list, chan_list_ieeg, srate = extract_chanlist_srate_conditions(conditions_allsubjects)
+    conditions, chan_list, chan_list_ieeg, srate = extract_chanlist_srate_conditions(sujet, conditions_allsubjects)
     respfeatures_allcond, respi_mean_allcond = load_respfeatures(sujet)
 
     #### check status
